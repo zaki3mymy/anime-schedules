@@ -19,7 +19,7 @@ provider "aws" {
 }
 
 locals {
-  appname = "anime-schdule"
+  appname = "anime-schedules"
 }
 
 module "main" {
