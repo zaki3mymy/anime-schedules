@@ -46,6 +46,26 @@ def _fetch_schedule(date: datetime) -> dict:
     return json.loads(body)
 
 
+def _change_message_format(schedules: dict[str, list]) -> list[dict[str, str]]:
+    def format_msg(program) -> str:
+        title = program["work"]["title"]
+        dt = datetime.fromisoformat(program["started_at"])
+        started_at = (dt + timedelta(hours=9)).strftime("%Y/%m/%d %H:%M:%S")
+        channel = program["channel"]["name"]
+        episode_number = program["episode"]["number_text"]
+        episode_title = program["episode"]["title"]
+
+        msg = f"""{title}
+{started_at}
+{channel}
+{episode_number} {episode_title}"""
+        return msg
+
+    return [
+        {"type": "text", "text": format_msg(p)} for p in schedules.get("programs", [])
+    ]
+
+
 def _push_message(messages: list[dict[str, str]]):
     token = os.environ["LINE_TOKEN"]
     user_id = os.environ["LINE_USER_ID"]
@@ -74,18 +94,13 @@ def lambda_handler(event, context):
         raise KeyError("Environment variable 'LINE_USER_ID' is not set.")
 
     today = datetime.now(timezone.utc) + timedelta(hours=9)
-    body = _fetch_schedule(today)
-    with open("tmp.json", "w", encoding="utf-8") as f:
-        json.dump(body, f, indent=4, ensure_ascii=False)
+    schedules = _fetch_schedule(today)
+    logger.info(json.dumps({"schedules": schedules}, ensure_ascii=False))
 
-    _push_message(
-        [
-            {
-                "type": "text",
-                "text": "Hello,\nWorld.",
-            }
-        ]
-    )
+    messages = _change_message_format(schedules)
+    logger.info(json.dumps({"send_messages": messages}, ensure_ascii=False))
+
+    _push_message(messages)
 
 
 if __name__ == "__main__":
