@@ -43,6 +43,11 @@ resource "aws_lambda_function" "main" {
     }
   }
   timeout = 30
+  logging_config {
+    log_format = "JSON"
+    application_log_level = "INFO"
+    system_log_level = "INFO"
+  }
 }
 resource "aws_lambda_permission" "main" {
   action        = "lambda:InvokeFunction"
