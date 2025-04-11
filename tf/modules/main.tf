@@ -26,7 +26,7 @@ resource "aws_iam_policy_attachment" "main" {
 data "archive_file" "main" {
   type        = "zip"
   source_dir  = "${path.root}/../src/anime_schedules/"
-  output_path = "${path.root}/src.zip"
+  output_path = "${path.root}/../dist/src.zip"
 }
 resource "aws_lambda_function" "main" {
   function_name    = var.appname
