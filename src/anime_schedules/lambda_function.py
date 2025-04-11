@@ -76,13 +76,19 @@ def _push_message(messages: list[dict[str, str]]):
         "Content-Type": "application/json",
         "Authorization": f"Bearer {token}",
     }
-    body = {
-        "to": user_id,
-        "messages": messages,
-    }
-    req = Request(url, json.dumps(body).encode("utf-8"), headers=headers, method="POST")
-    with urlopen(req) as res:
-        body = res.read()
+
+    # メッセージは1リクエストあたり最大5件までしか送れない
+    while len(messages) > 0:
+        body = {
+            "to": user_id,
+            "messages": messages[:5],
+        }
+        req = Request(
+            url, json.dumps(body).encode("utf-8"), headers=headers, method="POST"
+        )
+        with urlopen(req) as res:
+            body = res.read()
+        messages = messages[5:]
 
 
 def lambda_handler(event, context):
