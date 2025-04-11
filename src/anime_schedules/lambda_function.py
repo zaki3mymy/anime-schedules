@@ -34,6 +34,7 @@ def _fetch_schedule(date: datetime) -> dict:
         "sort_started_at": "asc",
     }
 
+    # 参考: https://developers.annict.com/docs/rest-api/v1/programs#get-v1meprograms
     url = f"{ANNICT_ENDPOINT}/v1/me/programs?{urlencode(params)}"
     logger.debug(url)
     headers = {"Authorization": f"Bearer {token}"}
