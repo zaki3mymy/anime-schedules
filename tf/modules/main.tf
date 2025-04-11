@@ -44,9 +44,9 @@ resource "aws_lambda_function" "main" {
   }
   timeout = 30
   logging_config {
-    log_format = "JSON"
+    log_format            = "JSON"
     application_log_level = "INFO"
-    system_log_level = "INFO"
+    system_log_level      = "INFO"
   }
 }
 resource "aws_lambda_permission" "main" {
@@ -64,8 +64,8 @@ resource "aws_cloudwatch_log_group" "main" {
 
 # EventBridge
 resource "aws_cloudwatch_event_rule" "main" {
-  name                = "${var.appname}-rule"
-  description         = "Send Anime Schedules every 16:00."
+  name        = "${var.appname}-rule"
+  description = "Send Anime Schedules every 16:00."
   # UTCでcron式を書くことに注意
   schedule_expression = "cron(0 7 * * ? *)"
 }
