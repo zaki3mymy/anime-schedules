@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
-ENDPOINT = "https://api.annict.com"
+ANNICT_ENDPOINT = "https://api.annict.com"
 
 logger = logging.getLogger(name=__name__)
 
@@ -19,7 +19,7 @@ def _fetch_schedule(date: datetime) -> dict:
     Returns:
         dict: 放送日
     """
-    token = os.environ["TOKEN"]
+    token = os.environ["ANNICT_TOKEN"]
 
     # 時間を落とす
     date = date.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -34,7 +34,7 @@ def _fetch_schedule(date: datetime) -> dict:
         "sort_started_at": "asc",
     }
 
-    url = f"{ENDPOINT}/v1/me/programs?{urlencode(params)}"
+    url = f"{ANNICT_ENDPOINT}/v1/me/programs?{urlencode(params)}"
     logger.debug(url)
     headers = {"Authorization": f"Bearer {token}"}
     req = Request(url, headers=headers)
@@ -45,9 +45,8 @@ def _fetch_schedule(date: datetime) -> dict:
 
 
 def lambda_handler(event, context):
-    TOKEN = os.environ.get("TOKEN")
-    if not TOKEN:
-        raise KeyError("Environment variable 'TOKEN' is not set.")
+    if not os.environ.get("ANNICT_TOKEN"):
+        raise KeyError("Environment variable 'ANNICT_TOKEN' is not set.")
 
     today = datetime.now(timezone.utc) + timedelta(hours=9)
     body = _fetch_schedule(today)
