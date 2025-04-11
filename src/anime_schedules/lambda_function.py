@@ -6,6 +6,7 @@ from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
 ANNICT_ENDPOINT = "https://api.annict.com"
+LINE_ENDPOINT = "https://api.line.me"
 
 logger = logging.getLogger(name=__name__)
 
@@ -45,14 +46,46 @@ def _fetch_schedule(date: datetime) -> dict:
     return json.loads(body)
 
 
+def _push_message(messages: list[dict[str, str]]):
+    token = os.environ["LINE_TOKEN"]
+    user_id = os.environ["LINE_USER_ID"]
+
+    # 参考: https://developers.line.biz/ja/reference/messaging-api/#send-push-message
+    url = f"{LINE_ENDPOINT}/v2/bot/message/push"
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {token}",
+    }
+    body = {
+        "to": user_id,
+        "messages": messages,
+    }
+    req = Request(url, json.dumps(body).encode("utf-8"), headers=headers, method="POST")
+    with urlopen(req) as res:
+        body = res.read()
+
+
 def lambda_handler(event, context):
     if not os.environ.get("ANNICT_TOKEN"):
         raise KeyError("Environment variable 'ANNICT_TOKEN' is not set.")
+    if not os.environ.get("LINE_TOKEN"):
+        raise KeyError("Environment variable 'LINE_TOKEN' is not set.")
+    if not os.environ.get("LINE_USER_ID"):
+        raise KeyError("Environment variable 'LINE_USER_ID' is not set.")
 
     today = datetime.now(timezone.utc) + timedelta(hours=9)
     body = _fetch_schedule(today)
     with open("tmp.json", "w", encoding="utf-8") as f:
         json.dump(body, f, indent=4, ensure_ascii=False)
+
+    _push_message(
+        [
+            {
+                "type": "text",
+                "text": "Hello,\nWorld.",
+            }
+        ]
+    )
 
 
 if __name__ == "__main__":
