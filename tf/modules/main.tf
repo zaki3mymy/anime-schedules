@@ -55,6 +55,12 @@ resource "aws_lambda_permission" "main" {
   principal     = "events.amazonaws.com"
   source_arn    = aws_cloudwatch_event_rule.main.arn
 }
+resource "aws_lambda_function_event_invoke_config" "main" {
+  function_name = aws_lambda_function.main.function_name
+  # 設定「非同期呼び出し→再試行」を0回にするための設定
+  # たぶんダメなときは何度やってもダメなので・・・。
+  maximum_retry_attempts = 0
+}
 
 # CloudWatch Logs
 resource "aws_cloudwatch_log_group" "main" {
