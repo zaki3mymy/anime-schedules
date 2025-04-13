@@ -38,7 +38,13 @@ def _fetch_schedule(date: datetime) -> dict:
     # 参考: https://developers.annict.com/docs/rest-api/v1/programs#get-v1meprograms
     url = f"{ANNICT_ENDPOINT}/v1/me/programs?{urlencode(params)}"
     logger.debug(url)
-    headers = {"Authorization": f"Bearer {token}"}
+    headers = {
+        "Authorization": f"Bearer {token}",
+        # urllibの素の User-Agent では Annict は 403 を返すようにしているっぽい。
+        # Windows の cmd に標準搭載されている curl では通ったのでそれを使う。
+        # 日に1回しか動かさないので許してくれるだろう・・・。
+        "User-Agent": "curl/8.11.1",
+    }
     req = Request(url, headers=headers)
     with urlopen(req) as res:
         body = res.read()
