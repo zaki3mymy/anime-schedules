@@ -71,9 +71,9 @@ resource "aws_cloudwatch_log_group" "main" {
 # EventBridge
 resource "aws_cloudwatch_event_rule" "main" {
   name        = "${var.appname}-rule"
-  description = "Send Anime Schedules every 16:00."
+  description = "Send Anime Schedules every 18:00."
   # UTCでcron式を書くことに注意
-  schedule_expression = "cron(0 7 * * ? *)"
+  schedule_expression = "cron(0 9 * * ? *)"
 }
 resource "aws_cloudwatch_event_target" "main" {
   rule      = aws_cloudwatch_event_rule.main.name
