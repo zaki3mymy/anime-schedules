@@ -37,21 +37,24 @@ jobs:
           aws-region: ap-northeast-1
 
       - name: Write Terraform variables file
+        working-directory: tf
         # secretsに改行を含む場合はbase64エンコードしておく必要があるっぽい
         # https://zenn.dev/coedo/scraps/d6e1efdf5311c7
         run: echo -n ${{ secrets.TERRAFORM_VARS }} | base64 --decode > terraform.tfvars
 
       - name: Initialize Terraform
+        working-directory: tf
         run: terraform init
 
       - name: Run Terraform Plan
+        working-directory: tf
         run: terraform plan -var-file=terraform.tfvars -out=tfplan
 
       - name: Upload Terraform Plan as Artifact
         uses: actions/upload-artifact@v4
         with:
           name: terraform-plan
-          path: tfplan
+          path: tf/tfplan
 
   terraform-apply:
     if: github.event_name == 'push'
@@ -72,12 +75,15 @@ jobs:
           aws-region: ap-northeast-1
 
       - name: Write Terraform variables file
+        working-directory: tf
         # secretsに改行を含む場合はbase64エンコードしておく必要があるっぽい
         # https://zenn.dev/coedo/scraps/d6e1efdf5311c7
         run: echo -n ${{ secrets.TERRAFORM_VARS }} | base64 --decode > terraform.tfvars
 
       - name: Initialize Terraform
+        working-directory: tf
         run: terraform init
 
       - name: Apply Terraform Plan
+        working-directory: tf
         run: terraform apply -var-file=terraform.tfvars -auto-approve
