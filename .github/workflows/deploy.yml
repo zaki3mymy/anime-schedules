@@ -37,7 +37,9 @@ jobs:
           aws-region: ap-northeast-1
 
       - name: Write Terraform variables file
-        run: echo -e "${{ secrets.TERRAFORM_VARS }}" > terraform.tfvars
+        # secretsに改行を含む場合はbase64エンコードしておく必要があるっぽい
+        # https://zenn.dev/coedo/scraps/d6e1efdf5311c7
+        run: echo -n ${{ secrets.TERRAFORM_VARS }} | base64 --decode > terraform.tfvars
 
       - name: Initialize Terraform
         run: terraform init
@@ -70,7 +72,9 @@ jobs:
           aws-region: ap-northeast-1
 
       - name: Write Terraform variables file
-        run: echo -e "${{ secrets.TERRAFORM_VARS }}" > terraform.tfvars
+        # secretsに改行を含む場合はbase64エンコードしておく必要があるっぽい
+        # https://zenn.dev/coedo/scraps/d6e1efdf5311c7
+        run: echo -n ${{ secrets.TERRAFORM_VARS }} | base64 --decode > terraform.tfvars
 
       - name: Initialize Terraform
         run: terraform init
