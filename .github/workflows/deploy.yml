@@ -37,7 +37,7 @@ jobs:
           aws-region: ap-northeast-1
 
       - name: Write Terraform variables file
-        run: echo "${{ secrets.TERRAFORM_VARS }}" > terraform.tfvars
+        run: echo -e "${{ secrets.TERRAFORM_VARS }}" > terraform.tfvars
 
       - name: Initialize Terraform
         run: terraform init
@@ -70,7 +70,7 @@ jobs:
           aws-region: ap-northeast-1
 
       - name: Write Terraform variables file
-        run: echo "${{ secrets.TERRAFORM_VARS }}" > terraform.tfvars
+        run: echo -e "${{ secrets.TERRAFORM_VARS }}" > terraform.tfvars
 
       - name: Initialize Terraform
         run: terraform init
