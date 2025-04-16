@@ -22,6 +22,57 @@ resource "aws_iam_policy_attachment" "main" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
 
+# GitHubとAWSをOIDCで連携するようにIDプロバイダを作成してある。
+# それにGitHubOIDCという名前のロールを割り当てているので、そのロールに
+# このファイルで作成・更新（削除）するリソースを操作するためのポリシーを割り当てる。
+resource "aws_iam_policy" "github_actions_oidc" {
+  name        = "${var.appname}-github-actions-oidc"
+  description = "Policy for GitHub Actions OIDC"
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "iam:CreateRole",
+          "iam:DeleteRole",
+          "iam:UpdateRole",
+          "iam:AttachRolePolicy",
+          "iam:DetachRolePolicy",
+          "iam:PassRole",
+          "iam:CreatePolicy",
+          "iam:DeletePolicy",
+          "iam:UpdatePolicy",
+          "lambda:CreateFunction",
+          "lambda:DeleteFunction",
+          "lambda:UpdateFunctionCode",
+          "lambda:UpdateFunctionConfiguration",
+          "lambda:AddPermission",
+          "lambda:RemovePermission",
+          "logs:CreateLogGroup",
+          "logs:DeleteLogGroup",
+          "logs:PutRetentionPolicy",
+          "events:PutRule",
+          "events:DeleteRule",
+          "events:PutTargets",
+          "events:RemoveTargets",
+          "resource-groups:CreateGroup",
+          "resource-groups:DeleteGroup",
+          "resource-groups:Tag",
+          "resource-groups:Untag",
+          "resource-groups:UpdateGroupQuery"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+}
+resource "aws_iam_policy_attachment" "github_actions_oidc" {
+  name       = "${var.appname}-github-actions-oidc-attachment"
+  policy_arn = aws_iam_policy.github_actions_oidc.arn
+  roles      = ["GitHubOIDC"]
+}
+
 # Lambda
 data "archive_file" "main" {
   type        = "zip"
