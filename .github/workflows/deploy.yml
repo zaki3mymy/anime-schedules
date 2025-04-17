@@ -36,7 +36,30 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ap-northeast-1
           # stateの取得に必要なポリシーを一時的に付与する
-          managed-session-policies: arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess
+          inline-session-policy: |
+            {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "s3:ListBucket"
+                  ],
+                  "Resource": [
+                    "arn:aws:s3:::${{ vars.S3_BUCKET_FOR_STATE }}"
+                  ]
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "s3:GetObject"
+                  ],
+                  "Resource": [
+                    "arn:aws:s3:::${{ vars.S3_BUCKET_FOR_STATE }}/*"
+                  ]
+                }
+              ]
+            }
 
       - name: Write Terraform variables file
         working-directory: tf
