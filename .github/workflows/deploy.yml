@@ -43,19 +43,12 @@ jobs:
                 {
                   "Effect": "Allow",
                   "Action": [
+                    "s3:GetObject",
                     "s3:ListBucket"
                   ],
                   "Resource": [
+                    "arn:aws:s3:::${{ vars.S3_BUCKET_FOR_STATE }}/*",
                     "arn:aws:s3:::${{ vars.S3_BUCKET_FOR_STATE }}"
-                  ]
-                },
-                {
-                  "Effect": "Allow",
-                  "Action": [
-                    "s3:GetObject"
-                  ],
-                  "Resource": [
-                    "arn:aws:s3:::${{ vars.S3_BUCKET_FOR_STATE }}/*"
                   ]
                 }
               ]
