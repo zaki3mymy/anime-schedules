@@ -44,7 +44,7 @@ jobs:
 
       - name: Initialize Terraform
         working-directory: tf
-        run: terraform init
+        run: terraform init -backend-config="bucket=${{ secrets.S3_BUCKET_FOR_STATE }}" -backend-config="key=anime-schedules/terraform.tfstate" -backend-config="region=ap-northeast-1"
 
       - name: Run Terraform Plan
         working-directory: tf
@@ -82,7 +82,7 @@ jobs:
 
       - name: Initialize Terraform
         working-directory: tf
-        run: terraform init
+        run: terraform init -backend-config="bucket=${{ secrets.S3_BUCKET_FOR_STATE }}" -backend-config="key=anime-schedules/terraform.tfstate" -backend-config="region=ap-northeast-1"
 
       - name: Apply Terraform Plan
         working-directory: tf
