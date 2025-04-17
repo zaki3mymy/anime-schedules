@@ -73,6 +73,52 @@ jobs:
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ap-northeast-1
+          # デプロイに必要なポリシーを一時的に付与する
+          inline-session-policy: |
+            {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "s3:ListBucket",
+                    "s3:GetObject",
+                    "s3:PutObject",
+                    "s3:DeleteObject",
+                    "iam:CreateRole",
+                    "iam:DeleteRole",
+                    "iam:UpdateRole",
+                    "iam:AttachRolePolicy",
+                    "iam:DetachRolePolicy",
+                    "iam:PassRole",
+                    "iam:CreatePolicy",
+                    "iam:DeletePolicy",
+                    "iam:UpdatePolicy",
+                    "lambda:CreateFunction",
+                    "lambda:DeleteFunction",
+                    "lambda:UpdateFunctionCode",
+                    "lambda:UpdateFunctionConfiguration",
+                    "lambda:AddPermission",
+                    "lambda:RemovePermission",
+                    "logs:CreateLogGroup",
+                    "logs:DeleteLogGroup",
+                    "logs:PutRetentionPolicy",
+                    "events:PutRule",
+                    "events:DeleteRule",
+                    "events:PutTargets",
+                    "events:RemoveTargets",
+                    "resource-groups:CreateGroup",
+                    "resource-groups:DeleteGroup",
+                    "resource-groups:Tag",
+                    "resource-groups:Untag",
+                    "resource-groups:UpdateGroupQuery"
+                  ],
+                  "Resource": [
+                    "*"
+                  ]
+                }
+              ]
+            }
 
       - name: Write Terraform variables file
         working-directory: tf
