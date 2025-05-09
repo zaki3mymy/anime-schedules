@@ -58,8 +58,9 @@ def _change_message_format(schedules: dict[str, list]) -> list[dict[str, str]]:
         dt = datetime.fromisoformat(program["started_at"])
         started_at = (dt + timedelta(hours=9)).strftime("%Y/%m/%d %H:%M:%S")
         channel = program["channel"]["name"]
-        episode_number = program["episode"]["number_text"]
-        episode_title = program["episode"]["title"]
+        episode = program.get("episode", {})
+        episode_number = episode.get("number_text", "N/A")
+        episode_title = episode.get("title", "N/A")
 
         msg = f"""{title}
 {started_at}
