@@ -24,3 +24,8 @@ allow-direct-references = true
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/anime_schedules"]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3.5",
+]
