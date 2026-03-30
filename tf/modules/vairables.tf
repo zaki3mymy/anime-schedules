@@ -7,12 +7,12 @@ variable "annict_token" {
   description = "Token for calling Annict API"
 }
 
-variable "line_token" {
+variable "notify_api_key" {
   type        = string
-  description = "Token for calling LINE Messaging API"
+  description = "API key for calling notification API"
 }
 
-variable "line_user_id" {
+variable "notify_endpoint" {
   type        = string
-  description = "LINE User ID"
+  description = "Endpoint URL of notification API"
 }

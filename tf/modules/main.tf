@@ -37,9 +37,9 @@ resource "aws_lambda_function" "main" {
   source_code_hash = data.archive_file.main.output_base64sha256
   environment {
     variables = {
-      "ANNICT_TOKEN" = var.annict_token
-      "LINE_TOKEN"   = var.line_token
-      "LINE_USER_ID" = var.line_user_id
+      "ANNICT_TOKEN"    = var.annict_token
+      "NOTIFY_API_KEY"  = var.notify_api_key
+      "NOTIFY_ENDPOINT" = var.notify_endpoint
     }
   }
   timeout = 30

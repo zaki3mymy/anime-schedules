@@ -11,5 +11,5 @@ Terraform を使ってAWS上にリソースを作成する。
 | variable | description |
 | --- | --- |
 | annict_token | Annictアプリケーションのアクセストークン |
-| line_token | Messaging APIを利用するチャネルのアクセストークン |
-| line_user_id | 通知するLINEユーザーのID(チャネル基本設定で確認できる) |
+| notify_api_key | 通知APIのAPIキー |
+| notify_endpoint | 通知APIのエンドポイントURL |

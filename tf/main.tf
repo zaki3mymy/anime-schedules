@@ -32,8 +32,8 @@ locals {
 module "main" {
   source = "./modules"
 
-  appname      = local.appname
-  annict_token = var.annict_token
-  line_token   = var.line_token
-  line_user_id = var.line_user_id
+  appname         = local.appname
+  annict_token    = var.annict_token
+  notify_api_key  = var.notify_api_key
+  notify_endpoint = var.notify_endpoint
 }
