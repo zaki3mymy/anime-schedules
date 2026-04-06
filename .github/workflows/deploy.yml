@@ -38,11 +38,17 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ap-northeast-1
 
-      - name: Write Terraform variables file
+      - name: Fetch Terraform variables from Parameter Store
         working-directory: tf
-        # secretsに改行を含む場合はbase64エンコードしておく必要があるっぽい
-        # https://zenn.dev/coedo/scraps/d6e1efdf5311c7
-        run: echo -n ${{ secrets.TERRAFORM_VARS }} | base64 --decode > terraform.tfvars
+        run: |
+          annict_token=$(aws ssm get-parameter --name "/app/anime_schedules/annict_token" --with-decryption --query "Parameter.Value" --output text)
+          notify_api_key=$(aws ssm get-parameter --name "/app/anime_schedules/notify_api_key" --with-decryption --query "Parameter.Value" --output text)
+          notify_endpoint=$(aws ssm get-parameter --name "/app/anime_schedules/notify_endpoint" --with-decryption --query "Parameter.Value" --output text)
+          cat <<EOF > terraform.tfvars
+          annict_token    = "$annict_token"
+          notify_api_key  = "$notify_api_key"
+          notify_endpoint = "$notify_endpoint"
+          EOF
 
       - name: Initialize Terraform
         working-directory: tf
@@ -76,11 +82,17 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ap-northeast-1
 
-      - name: Write Terraform variables file
+      - name: Fetch Terraform variables from Parameter Store
         working-directory: tf
-        # secretsに改行を含む場合はbase64エンコードしておく必要があるっぽい
-        # https://zenn.dev/coedo/scraps/d6e1efdf5311c7
-        run: echo -n ${{ secrets.TERRAFORM_VARS }} | base64 --decode > terraform.tfvars
+        run: |
+          annict_token=$(aws ssm get-parameter --name "/app/anime_schedules/annict_token" --with-decryption --query "Parameter.Value" --output text)
+          notify_api_key=$(aws ssm get-parameter --name "/app/anime_schedules/notify_api_key" --with-decryption --query "Parameter.Value" --output text)
+          notify_endpoint=$(aws ssm get-parameter --name "/app/anime_schedules/notify_endpoint" --with-decryption --query "Parameter.Value" --output text)
+          cat <<EOF > terraform.tfvars
+          annict_token    = "$annict_token"
+          notify_api_key  = "$notify_api_key"
+          notify_endpoint = "$notify_endpoint"
+          EOF
 
       - name: Initialize Terraform
         working-directory: tf
