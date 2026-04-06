@@ -6,7 +6,6 @@ from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
 ANNICT_ENDPOINT = "https://api.annict.com"
-LINE_ENDPOINT = "https://api.line.me"
 
 logger = logging.getLogger(name=__name__)
 
@@ -74,37 +73,31 @@ def _change_message_format(schedules: dict[str, list]) -> list[dict[str, str]]:
 
 
 def _push_message(messages: list[dict[str, str]]):
-    token = os.environ["LINE_TOKEN"]
-    user_id = os.environ["LINE_USER_ID"]
+    api_key = os.environ["NOTIFY_API_KEY"]
+    notify_endpoint = os.environ["NOTIFY_ENDPOINT"]
 
-    # 参考: https://developers.line.biz/ja/reference/messaging-api/#send-push-message
-    url = f"{LINE_ENDPOINT}/v2/bot/message/push"
+    url = f"{notify_endpoint}/notify"
     headers = {
         "Content-Type": "application/json",
-        "Authorization": f"Bearer {token}",
+        "x-api-key": api_key,
     }
 
-    # メッセージは1リクエストあたり最大5件までしか送れない
-    while len(messages) > 0:
-        body = {
-            "to": user_id,
-            "messages": messages[:5],
-        }
-        req = Request(
-            url, json.dumps(body).encode("utf-8"), headers=headers, method="POST"
-        )
-        with urlopen(req) as res:
-            body = res.read()
-        messages = messages[5:]
+    texts = [m["text"] for m in messages]
+    body = {"messages": texts}
+    req = Request(
+        url, json.dumps(body).encode("utf-8"), headers=headers, method="POST"
+    )
+    with urlopen(req) as res:
+        res.read()
 
 
 def lambda_handler(event, context):
     if not os.environ.get("ANNICT_TOKEN"):
         raise KeyError("Environment variable 'ANNICT_TOKEN' is not set.")
-    if not os.environ.get("LINE_TOKEN"):
-        raise KeyError("Environment variable 'LINE_TOKEN' is not set.")
-    if not os.environ.get("LINE_USER_ID"):
-        raise KeyError("Environment variable 'LINE_USER_ID' is not set.")
+    if not os.environ.get("NOTIFY_API_KEY"):
+        raise KeyError("Environment variable 'NOTIFY_API_KEY' is not set.")
+    if not os.environ.get("NOTIFY_ENDPOINT"):
+        raise KeyError("Environment variable 'NOTIFY_ENDPOINT' is not set.")
 
     today = datetime.now(timezone.utc) + timedelta(hours=9)
     schedules = _fetch_schedule(today)

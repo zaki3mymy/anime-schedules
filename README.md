@@ -1,6 +1,6 @@
 # anime-schedules
 
-今日放送するアニメを [Annict](https://developers.annict.com/) から取得して [LINE Messaging API](https://developers.line.biz/ja/services/messaging-api/) で通知する。
+今日放送するアニメを [Annict](https://developers.annict.com/) から取得して通知APIで通知する。
 
 
 ## Description
@@ -26,13 +26,12 @@ Annict で「見てるアニメ」に登録しているアニメのうち、今�
 
 その他、必要となるアカウント。
 - Annictアカウント
-- LINE Developersアカウント
 - AWSアカウント(デプロイ先)
 
 
 ## Usage
 
-環境変数 `ANNICT_TOKEN`, `LINE_TOKEN`, `LINE_USER_ID`を設定し、以下を実行する。
+環境変数 `ANNICT_TOKEN`, `NOTIFY_API_KEY`を設定し、以下を実行する。
 ```
 python src/anime_schedules/lambda_function.py
 ```
