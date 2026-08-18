@@ -1,7 +1,22 @@
 services:
+  stub:
+    image: mockoon/cli:latest
+    volumes:
+      - ./config/mockoon/api-stub.json:/data/api-stub.json:ro
+    command: ["-d", "/data/api-stub.json", "-p", "3000"]
+    ports:
+      - "3000:3000"
+
   lambda:
     build:
       context: .
       dockerfile: Containerfile
+    environment:
+      ANNICT_ENDPOINT: http://stub:3000
+      NOTIFY_ENDPOINT: http://stub:3000
+      ANNICT_TOKEN:
+      NOTIFY_API_KEY:
     ports:
       - "9000:8080"
+    depends_on:
+      - stub

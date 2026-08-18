@@ -20,6 +20,7 @@ def _fetch_schedule(date: datetime) -> dict:
         dict: 放送日
     """
     token = os.environ["ANNICT_TOKEN"]
+    annict_endpoint = os.environ.get("ANNICT_ENDPOINT", ANNICT_ENDPOINT)
 
     # 時間を落とす
     date = date.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -35,7 +36,7 @@ def _fetch_schedule(date: datetime) -> dict:
     }
 
     # 参考: https://developers.annict.com/docs/rest-api/v1/programs#get-v1meprograms
-    url = f"{ANNICT_ENDPOINT}/v1/me/programs?{urlencode(params)}"
+    url = f"{annict_endpoint}/v1/me/programs?{urlencode(params)}"
     logger.debug(url)
     headers = {
         "Authorization": f"Bearer {token}",

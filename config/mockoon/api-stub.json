@@ -1,0 +1,38 @@
+{
+  "uuid": "00000000-0000-0000-0000-000000000001",
+  "lastMigration": 33,
+  "name": "anime-schedules API stub",
+  "endpointPrefix": "",
+  "latency": 0,
+  "port": 3000,
+  "routes": [
+    {
+      "uuid": "00000000-0000-0000-0000-000000000002",
+      "method": "get",
+      "endpoint": "v1/me/programs",
+      "responses": [
+        {
+          "uuid": "00000000-0000-0000-0000-000000000003",
+          "statusCode": 200,
+          "label": "OK",
+          "headers": [{ "key": "Content-Type", "value": "application/json" }],
+          "body": "{\"programs\": [{\"started_at\": \"2024-01-01T09:00:00.000Z\", \"work\": {\"title\": \"スタブアニメ\"}, \"channel\": {\"name\": \"スタブチャンネル\"}, \"episode\": {\"number_text\": \"第1話\", \"title\": \"スタブサブタイトル\"}}]}"
+        }
+      ]
+    },
+    {
+      "uuid": "00000000-0000-0000-0000-000000000004",
+      "method": "post",
+      "endpoint": "notify",
+      "responses": [
+        {
+          "uuid": "00000000-0000-0000-0000-000000000005",
+          "statusCode": 200,
+          "label": "OK",
+          "headers": [{ "key": "Content-Type", "value": "application/json" }],
+          "body": "{}"
+        }
+      ]
+    }
+  ]
+}

@@ -37,6 +37,19 @@ python src/anime_schedules/lambda_function.py
 ```
 
 
+## Local Development
+
+実際の Annict API・通知API を呼び出さずに動作確認したい場合、Mockoon CLI によるスタブサーバーを利用できる。
+`podman-compose up` を実行すると、`lambda` サービスは `stub` サービス（`config/mockoon/api-stub.json` で定義）に向けて通信する。
+
+`lambda_handler` は `ANNICT_TOKEN`, `NOTIFY_API_KEY` の環境変数を参照する。`podman-compose.yml` はこれらをホスト側のシェル環境変数から引き継ぐ設定になっているため、実行前にエクスポートしておくこと（スタブサーバー宛の通信のみなので、値はダミーで問題ない）。
+```
+export ANNICT_TOKEN=dummy
+export NOTIFY_API_KEY=dummy
+podman-compose up --build
+```
+
+
 ## Deployment
 
 Terraform を使ってAWS上にリソースを作成する。  
