@@ -1,0 +1,7 @@
+services:
+  lambda:
+    build:
+      context: .
+      dockerfile: Containerfile
+    ports:
+      - "9000:8080"
