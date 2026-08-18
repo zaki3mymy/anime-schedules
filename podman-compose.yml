@@ -14,6 +14,8 @@ services:
     environment:
       ANNICT_ENDPOINT: http://stub:3000
       NOTIFY_ENDPOINT: http://stub:3000
+      ANNICT_TOKEN:
+      NOTIFY_API_KEY:
     ports:
       - "9000:8080"
     depends_on:
