@@ -6,17 +6,22 @@ services:
     command: ["-d", "/data/api-stub.json", "-p", "3000"]
     ports:
       - "3000:3000"
+    networks:
+      - local-net
 
   lambda:
     build:
       context: .
       dockerfile: Containerfile
-    environment:
-      ANNICT_ENDPOINT: http://stub:3000
-      NOTIFY_ENDPOINT: http://stub:3000
-      ANNICT_TOKEN:
-      NOTIFY_API_KEY:
+    env_file:
+      - .env.local
     ports:
       - "9000:8080"
     depends_on:
       - stub
+    networks:
+      - local-net
+
+networks:
+  local-net:
+    driver: bridge

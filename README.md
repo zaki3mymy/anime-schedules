@@ -40,12 +40,12 @@ python src/anime_schedules/lambda_function.py
 ## Local Development
 
 実際の Annict API・通知API を呼び出さずに動作確認したい場合、Mockoon CLI によるスタブサーバーを利用できる。
-`podman-compose up` を実行すると、`lambda` サービスは `stub` サービス（`config/mockoon/api-stub.json` で定義）に向けて通信する。
+`podman-compose up` を実行すると、`lambda` サービスは `local-net` という podman-compose 内部ネットワークを経由して `stub` サービス（`config/mockoon/api-stub.json` で定義）に向けて通信する。
 
-`lambda_handler` は `ANNICT_TOKEN`, `NOTIFY_API_KEY` の環境変数を参照する。`podman-compose.yml` はこれらをホスト側のシェル環境変数から引き継ぐ設定になっているため、実行前にエクスポートしておくこと（スタブサーバー宛の通信のみなので、値はダミーで問題ない）。
+`lambda_handler` は `ANNICT_TOKEN`, `NOTIFY_API_KEY`, `NOTIFY_ENDPOINT`, `ANNICT_ENDPOINT` の環境変数を参照する。`.env.example` をコピーして `.env.local` を作成し、`ANNICT_TOKEN`・`NOTIFY_API_KEY` にダミー値を、`ANNICT_ENDPOINT`・`NOTIFY_ENDPOINT` にスタブサーバーのURL（`http://stub:3000`）を設定する（`.env.local` は git 管理対象外）。
 ```
-export ANNICT_TOKEN=dummy
-export NOTIFY_API_KEY=dummy
+cp .env.example .env.local
+# .env.local の ANNICT_ENDPOINT / NOTIFY_ENDPOINT を http://stub:3000 に変更
 podman-compose up --build
 ```
 
