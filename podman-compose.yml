@@ -15,10 +15,58 @@ services:
       dockerfile: Containerfile
     env_file:
       - .env.local
+    environment:
+      OTEL_SERVICE_NAME: anime-schedules
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+      OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+      OTEL_TRACES_EXPORTER: otlp
+      OTEL_METRICS_EXPORTER: otlp
+      OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE: DELTA
     ports:
       - "9000:8080"
     depends_on:
       - stub
+      - otel-collector
+    networks:
+      - local-net
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    volumes:
+      - ./config/otel-collector-config.yaml:/etc/otelcol-contrib/config.yaml:ro
+    ports:
+      - "4317:4317"
+      - "4318:4318"
+    depends_on:
+      - jaeger
+    networks:
+      - local-net
+
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+    ports:
+      - "16686:16686"
+    networks:
+      - local-net
+
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./config/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+    networks:
+      - local-net
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      # ホストの3000番は stub (Mockoon) が使用しているためずらす
+      - "3001:3000"
+    depends_on:
+      - prometheus
     networks:
       - local-net
 
