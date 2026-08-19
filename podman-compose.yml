@@ -4,8 +4,6 @@ services:
     volumes:
       - ./config/mockoon/api-stub.json:/data/api-stub.json:ro
     command: ["-d", "/data/api-stub.json", "-p", "3000"]
-    ports:
-      - "3000:3000"
     networks:
       - local-net
 
@@ -63,8 +61,7 @@ services:
   grafana:
     image: grafana/grafana:latest
     ports:
-      # ホストの3000番は stub (Mockoon) が使用しているためずらす
-      - "3001:3000"
+      - "3000:3000"
     depends_on:
       - prometheus
     networks:

@@ -59,12 +59,12 @@ lambda → OTLP(HTTP:4318) → otel-collector
                                 ├─ traces  → Jaeger  (UI: localhost:16686)
                                 └─ metrics → Prometheus (UI: localhost:9090)
                                                 ↓
-                                            Grafana (UI: localhost:3001)
+                                            Grafana (UI: localhost:3000)
 ```
 
 - Jaeger UI: http://localhost:16686
 - Prometheus UI: http://localhost:9090
-- Grafana UI: http://localhost:3001 (初期ログイン `admin` / `admin`。Prometheus をデータソースとして手動で追加する必要がある。データソースURLは `http://prometheus:9090`)
+- Grafana UI: http://localhost:3000 (初期ログイン `admin` / `admin`。Prometheus をデータソースとして手動で追加する必要がある。データソースURLは `http://prometheus:9090`)
 
 なお、現時点では `lambda_function.py` 側にOTelの計装（SDK初期化・スパン生成）が含まれていないため、上記の環境変数を設定しただけでは実際のトレース・メトリクスは送信されない。アプリケーションへの計装追加は別Issueで対応する想定。
 
