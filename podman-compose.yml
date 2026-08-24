@@ -11,6 +11,16 @@ services:
     build:
       context: .
       dockerfile: Containerfile
+    # ベースイメージの既定ENTRYPOINT(/lambda-entrypoint.sh)はハンドラ名1個の引数しか
+    # 受け付けないため、RIEバイナリを直接ENTRYPOINTにしてcommand全体を実行させる
+    entrypoint:
+      - /usr/local/bin/aws-lambda-rie
+    command:
+      - opentelemetry-instrument
+      - python
+      - -m
+      - awslambdaric
+      - lambda_function.lambda_handler
     env_file:
       - .env.local
     environment:

@@ -66,7 +66,11 @@ lambda → OTLP(HTTP:4318) → otel-collector
 - Prometheus UI: http://localhost:9090
 - Grafana UI: http://localhost:3000 (初期ログイン `admin` / `admin`。Prometheus をデータソースとして手動で追加する必要がある。データソースURLは `http://prometheus:9090`)
 
-なお、現時点では `lambda_function.py` 側にOTelの計装（SDK初期化・スパン生成）が含まれていないため、上記の環境変数を設定しただけでは実際のトレース・メトリクスは送信されない。アプリケーションへの計装追加は別Issueで対応する想定。
+`lambda` サービスは [OpenTelemetry の自動計装](https://opentelemetry.io/docs/zero-code/python/) (`opentelemetry-instrument`) 経由で起動しており、コード変更なしに以下のスパンが記録される。
+- Lambda呼び出し全体（EventBridgeトリガー）のスパン
+- Annict API・通知APIへの `urllib` リクエストのスパン
+
+なお、ローカル環境用の `Containerfile` を使ったコンテナイメージであり、`tf/modules/main.tf` でデプロイしている本番のZipパッケージ形式のLambda関数には自動計装は含まれていない。
 
 
 ## Deployment
