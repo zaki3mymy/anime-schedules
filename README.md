@@ -70,7 +70,7 @@ lambda → OTLP(HTTP:4318) → otel-collector
 - Lambda呼び出し全体（EventBridgeトリガー）のスパン
 - Annict API・通知APIへの `urllib` リクエストのスパン
 
-なお、ローカル環境用の `Containerfile` を使ったコンテナイメージであり、`tf/modules/main.tf` でデプロイしている本番のZipパッケージ形式のLambda関数には自動計装は含まれていない。
+なお、ローカル環境用の `Containerfile` を使ったコンテナイメージであり、`tf/modules/main.tf` でデプロイしている本番のZipパッケージ形式のLambda関数には `opentelemetry` パッケージが含まれないため、ADOT Python Layer (`tf/main.tf` の `otel_layer_arn`) を付与してLambdaに提供している。
 
 
 ## Deployment

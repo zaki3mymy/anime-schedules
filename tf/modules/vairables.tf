@@ -16,3 +16,8 @@ variable "notify_endpoint" {
   type        = string
   description = "Endpoint URL of notification API"
 }
+
+variable "otel_layer_arn" {
+  type        = string
+  description = "ARN of the AWS Distro for OpenTelemetry (ADOT) Python Lambda layer"
+}

@@ -22,6 +22,11 @@ resource "aws_iam_policy_attachment" "main" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
 
+resource "aws_iam_role_policy_attachment" "xray" {
+  role       = aws_iam_role.main.name
+  policy_arn = "arn:aws:iam::aws:policy/AWSXRayDaemonWriteAccess"
+}
+
 # Lambda
 data "archive_file" "main" {
   type        = "zip"
@@ -35,8 +40,14 @@ resource "aws_lambda_function" "main" {
   runtime          = "python3.13"
   filename         = data.archive_file.main.output_path
   source_code_hash = data.archive_file.main.output_base64sha256
+  # zipには opentelemetry パッケージが含まれないため、Layerから提供する
+  layers = [var.otel_layer_arn]
+  tracing_config {
+    mode = "Active"
+  }
   environment {
     variables = {
+      "AWS_LAMBDA_EXEC_WRAPPER" = "/opt/otel-instrument"
       "ANNICT_TOKEN"    = var.annict_token
       "NOTIFY_API_KEY"  = var.notify_api_key
       "NOTIFY_ENDPOINT" = var.notify_endpoint

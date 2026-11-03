@@ -27,6 +27,9 @@ provider "aws" {
 
 locals {
   appname = "anime-schedules"
+  # ADOT Python Layer。バージョンは以下を参照して更新する
+  # https://aws-otel.github.io/docs/getting-started/lambda/lambda-python
+  otel_layer_arn = "arn:aws:lambda:ap-northeast-1:901920570463:layer:aws-otel-python-amd64-ver-1-32-0:2"
 }
 
 module "main" {
@@ -36,4 +39,5 @@ module "main" {
   annict_token    = var.annict_token
   notify_api_key  = var.notify_api_key
   notify_endpoint = var.notify_endpoint
+  otel_layer_arn  = local.otel_layer_arn
 }
