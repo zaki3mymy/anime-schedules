@@ -48,6 +48,8 @@ resource "aws_lambda_function" "main" {
   environment {
     variables = {
       "AWS_LAMBDA_EXEC_WRAPPER" = "/opt/otel-instrument"
+      # zipに同梱した collector.yaml を使う(/var/task はLambdaのコード展開先)
+      "OPENTELEMETRY_COLLECTOR_CONFIG_URI" = "/var/task/collector.yaml"
       "ANNICT_TOKEN"    = var.annict_token
       "NOTIFY_API_KEY"  = var.notify_api_key
       "NOTIFY_ENDPOINT" = var.notify_endpoint
