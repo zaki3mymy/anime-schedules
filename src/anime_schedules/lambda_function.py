@@ -5,11 +5,28 @@ from datetime import datetime, timedelta, timezone
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
+from opentelemetry import metrics, trace
+
 ANNICT_ENDPOINT = "https://api.annict.com"
 
 logger = logging.getLogger(name=__name__)
 
+_tracer = trace.get_tracer("anime_schedules")
+_meter = metrics.get_meter("anime_schedules")
 
+_notification_counter = _meter.create_counter(
+    "anime_schedules.notifications.sent",
+    unit="1",
+    description="Number of notification API calls",
+)
+_fetched_count_histogram = _meter.create_histogram(
+    "anime_schedules.schedules.fetched",
+    unit="1",
+    description="Number of programs fetched per run",
+)
+
+
+@_tracer.start_as_current_span("fetch_schedule")
 def _fetch_schedule(date: datetime) -> dict:
     """その日の18時～26時に放送されるアニメを取得する。
 
@@ -49,7 +66,11 @@ def _fetch_schedule(date: datetime) -> dict:
     with urlopen(req) as res:
         body = res.read()
 
-    return json.loads(body)
+    schedules = json.loads(body)
+    programs_count = len(schedules.get("programs", []))
+    trace.get_current_span().set_attribute("annict.programs_count", programs_count)
+    _fetched_count_histogram.record(programs_count)
+    return schedules
 
 
 def _change_message_format(schedules: dict[str, list]) -> list[dict[str, str]]:
@@ -73,7 +94,10 @@ def _change_message_format(schedules: dict[str, list]) -> list[dict[str, str]]:
     ]
 
 
+@_tracer.start_as_current_span("push_message")
 def _push_message(messages: list[dict[str, str]]):
+    trace.get_current_span().set_attribute("notify.message_count", len(messages))
+
     api_key = os.environ["NOTIFY_API_KEY"]
     notify_endpoint = os.environ["NOTIFY_ENDPOINT"]
 
@@ -88,8 +112,13 @@ def _push_message(messages: list[dict[str, str]]):
     req = Request(
         url, json.dumps(body).encode("utf-8"), headers=headers, method="POST"
     )
-    with urlopen(req) as res:
-        res.read()
+    try:
+        with urlopen(req) as res:
+            res.read()
+    except Exception:
+        _notification_counter.add(1, {"status": "error"})
+        raise
+    _notification_counter.add(1, {"status": "success"})
 
 
 def lambda_handler(event, context):
