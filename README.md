@@ -22,6 +22,7 @@ Annict で「見てるアニメ」に登録しているアニメのうち、今�
 
 実行に必要なソフトウェア。
 - Python 3.13
+- [uv](https://docs.astral.sh/uv/)（Python の依存関係の管理）
 - Terraform 1.10
 
 その他、必要となるアカウント。
@@ -31,9 +32,21 @@ Annict で「見てるアニメ」に登録しているアニメのうち、今�
 
 ## Usage
 
+依存パッケージをインストールする。
+```
+uv sync
+```
+
 環境変数 `ANNICT_TOKEN`, `NOTIFY_API_KEY`を設定し、以下を実行する。
 ```
-python src/anime_schedules/lambda_function.py
+uv run python src/anime_schedules/lambda_function.py
+```
+
+テストと lint は以下で実行する。
+```
+uv run pytest
+uv run ruff check src tests
+uv run ruff format --check src tests
 ```
 
 
