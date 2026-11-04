@@ -1,9 +1,7 @@
-from __future__ import annotations
-
 import json
 import logging
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
@@ -129,7 +127,7 @@ def lambda_handler(event, context):
     if not os.environ.get("NOTIFY_ENDPOINT"):
         raise KeyError("Environment variable 'NOTIFY_ENDPOINT' is not set.")
 
-    today = datetime.now(timezone.utc) + timedelta(hours=9)
+    today = datetime.now(UTC) + timedelta(hours=9)
     schedules = _fetch_schedule(today)
     logger.info(json.dumps({"schedules": schedules}, ensure_ascii=False))
 
