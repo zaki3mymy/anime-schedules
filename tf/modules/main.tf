@@ -22,6 +22,17 @@ resource "aws_iam_policy_attachment" "main" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
 
+resource "aws_iam_role_policy_attachment" "xray" {
+  role       = aws_iam_role.main.name
+  policy_arn = "arn:aws:iam::aws:policy/AWSXRayDaemonWriteAccess"
+}
+
+# awsemf エクスポーターで CloudWatch にメトリクスを送信するため
+resource "aws_iam_role_policy_attachment" "cloudwatch_metrics" {
+  role       = aws_iam_role.main.name
+  policy_arn = "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"
+}
+
 # Lambda
 data "archive_file" "main" {
   type        = "zip"
@@ -35,11 +46,26 @@ resource "aws_lambda_function" "main" {
   runtime          = "python3.13"
   filename         = data.archive_file.main.output_path
   source_code_hash = data.archive_file.main.output_base64sha256
+  # zipには opentelemetry パッケージが含まれないため、Layerから提供する
+  # AWS_LAMBDA_EXEC_WRAPPER（下記environment）でPython計装レイヤーがlambda_handlerをラップする
+  layers = var.otel_layer_arns
+  tracing_config {
+    mode = "Active"
+  }
   environment {
     variables = {
-      "ANNICT_TOKEN"    = var.annict_token
-      "NOTIFY_API_KEY"  = var.notify_api_key
-      "NOTIFY_ENDPOINT" = var.notify_endpoint
+      "AWS_LAMBDA_EXEC_WRAPPER" = "/opt/otel-handler"
+      # zipに同梱した collector.yaml を使う(/var/task はLambdaのコード展開先)
+      "OPENTELEMETRY_COLLECTOR_CONFIG_URI" = "/var/task/collector.yaml"
+      "OTEL_SERVICE_NAME"                  = var.appname
+      "OTEL_TRACES_EXPORTER"               = "otlp"
+      "OTEL_METRICS_EXPORTER"              = "otlp"
+      # 1日1回の実行でほぼ毎回コールドスタートになるため、累積値だと awsemf が
+      # 初回データポイントを基準値として捨ててしまう。DELTA で送信する
+      "OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE" = "DELTA"
+      "ANNICT_TOKEN"                                      = var.annict_token
+      "NOTIFY_API_KEY"                                    = var.notify_api_key
+      "NOTIFY_ENDPOINT"                                   = var.notify_endpoint
     }
   }
   timeout = 30
