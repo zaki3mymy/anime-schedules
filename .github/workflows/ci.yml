@@ -30,10 +30,6 @@ on:
 permissions:
   contents: read
 
-env:
-  # ローカルと CI で結果が変わらないよう ruff のバージョンを固定する
-  RUFF_VERSION: "0.16.9"
-
 jobs:
   lint:
     runs-on: ubuntu-latest
@@ -43,12 +39,18 @@ jobs:
 
       - name: Install uv
         uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          enable-cache: true
+
+      # ruff のバージョンは uv.lock（dev グループ）で固定している
+      - name: Install dependencies
+        run: uv sync --locked --dev
 
       - name: Ruff check
-        run: uvx ruff@${RUFF_VERSION} check src tests
+        run: uv run ruff check src tests
 
       - name: Ruff format check
-        run: uvx ruff@${RUFF_VERSION} format --check --diff src tests
+        run: uv run ruff format --check --diff src tests
 
   test:
     runs-on: ubuntu-latest
