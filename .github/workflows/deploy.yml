@@ -21,7 +21,11 @@ permissions:
 
 jobs:
   terraform-plan:
-    if: github.event_name == 'pull_request'
+    # Dependabot の PR にはシークレット（AWS_ROLE_ARN）が渡されず AWS 認証に失敗するためスキップする。
+    # 依存の更新は ci.yml で確認する。github.actor ではなく PR 作成者で判定し、誰がプッシュしても挙動を揃える
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.user.login != 'dependabot[bot]'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code

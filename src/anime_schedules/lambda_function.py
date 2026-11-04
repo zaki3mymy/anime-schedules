@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import json
 import logging
 import os
@@ -109,9 +111,7 @@ def _push_message(messages: list[dict[str, str]]):
 
     texts = [m["text"] for m in messages]
     body = {"messages": texts}
-    req = Request(
-        url, json.dumps(body).encode("utf-8"), headers=headers, method="POST"
-    )
+    req = Request(url, json.dumps(body).encode("utf-8"), headers=headers, method="POST")
     try:
         with urlopen(req) as res:
             res.read()
