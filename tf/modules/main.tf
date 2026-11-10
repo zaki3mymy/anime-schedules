@@ -16,8 +16,6 @@ resource "aws_iam_role" "main" {
     ]
   })
 }
-# aws_iam_policy_attachment はアカウント全体でポリシーのアタッチ先を排他的に管理してしまい、
-# 同じマネージドポリシーを使う他プロジェクトのロールからデタッチしようとするため、ロール単位で管理する
 resource "aws_iam_role_policy_attachment" "basic_execution" {
   role       = aws_iam_role.main.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
