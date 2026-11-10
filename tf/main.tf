@@ -6,7 +6,7 @@ terraform {
     }
   }
 
-  required_version = ">= 1.2.0"
+  required_version = ">= 1.7.0"
 
   # `terraform init`のときに`-backend-config`で以下の値を設定する
   # -backend-config="bucket=<BUCKET_NAME>"
@@ -48,11 +48,17 @@ module "main" {
   otel_layer_arns = local.otel_layer_arns
 }
 
-# aws_iam_policy_attachment から aws_iam_role_policy_attachment への置き換えに伴い、既存のアタッチをstateに取り込む
-# 事前に `terraform state rm module.main.aws_iam_policy_attachment.main` を実行しておくこと
-# (stateから外さないと旧リソースのdestroyで全ロールからポリシーがデタッチされる)
-# 取り込み後はこのブロックを削除してよい
+# aws_iam_policy_attachment から aws_iam_role_policy_attachment への置き換え
+# 旧リソースはdestroyすると全ロールからポリシーがデタッチされるため、stateから外すだけにする
+# 適用後はremoved/importブロックともに削除してよい
+removed {
+  from = module.main.aws_iam_policy_attachment.main
+  lifecycle {
+    destroy = false
+  }
+}
+
 import {
   to = module.main.aws_iam_role_policy_attachment.basic_execution
-  id = "anime-schedules-role/arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+  id = "${local.appname}-role/arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
