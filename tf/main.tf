@@ -47,3 +47,12 @@ module "main" {
   notify_endpoint = var.notify_endpoint
   otel_layer_arns = local.otel_layer_arns
 }
+
+# aws_iam_policy_attachment から aws_iam_role_policy_attachment への置き換えに伴い、既存のアタッチをstateに取り込む
+# 事前に `terraform state rm module.main.aws_iam_policy_attachment.main` を実行しておくこと
+# (stateから外さないと旧リソースのdestroyで全ロールからポリシーがデタッチされる)
+# 取り込み後はこのブロックを削除してよい
+import {
+  to = module.main.aws_iam_role_policy_attachment.basic_execution
+  id = "anime-schedules-role/arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+}
