@@ -27,15 +27,20 @@ provider "aws" {
 
 locals {
   appname = "anime-schedules"
-  # OTel Lambdaレイヤー: Python計装レイヤー（コミュニティ製） + ADOTコレクターレイヤー（AWS公式）
-  # Python計装レイヤーのバージョンは https://github.com/open-telemetry/opentelemetry-lambda/releases で確認
-  # ADOTコレクターレイヤーのバージョンは https://aws-otel.github.io/docs/getting-started/lambda で確認
-  # awsxray/awsemfエクスポーターを使うため、コレクターはADOT版（901920570463）を使う
-  # コミュニティ製コレクターレイヤー（184161586896）にはAWS固有エクスポーターが含まれていない
+  # OTel Lambdaレイヤー: Python計装レイヤー + コレクターレイヤー（どちらもコミュニティ製）
+  # バージョンは https://github.com/open-telemetry/opentelemetry-lambda/releases で確認
+  # （layer-python/<version>・layer-collector/<version> のタグ）
+  # コレクターは OTLP を受けて、Grafana Cloud に otlphttp で送る（src/anime_schedules/collector.yaml）
   otel_layer_arns = [
     "arn:aws:lambda:ap-northeast-1:184161586896:layer:opentelemetry-python-0_21_0:1",
-    "arn:aws:lambda:ap-northeast-1:901920570463:layer:aws-otel-collector-amd64-ver-0-117-0:1",
+    "arn:aws:lambda:ap-northeast-1:184161586896:layer:opentelemetry-collector-amd64-0_24_0:1",
   ]
+
+  # Grafana Cloud の OTLP の送信先（スタックの OTLP の URL に /otlp を付けたもの）。
+  # otlphttp exporter はこの後ろに /v1/traces・/v1/metrics を付けて送る
+  grafana_otlp_endpoint = "https://otlp-gateway-prod-ap-northeast-0.grafana.net/otlp"
+  # Grafana Cloud に送るための Authorization ヘッダーの値を置いた SSM パラメータ（このリポジトリの外で作る）
+  grafana_otlp_auth_parameter = "/app/grafana/prod/otlp_auth"
 }
 
 module "main" {
@@ -46,4 +51,7 @@ module "main" {
   notify_api_key  = var.notify_api_key
   notify_endpoint = var.notify_endpoint
   otel_layer_arns = local.otel_layer_arns
+
+  grafana_otlp_endpoint       = local.grafana_otlp_endpoint
+  grafana_otlp_auth_parameter = local.grafana_otlp_auth_parameter
 }

@@ -83,7 +83,11 @@ lambda → OTLP(HTTP:4318) → otel-collector
 - Lambda呼び出し全体（EventBridgeトリガー）のスパン
 - Annict API・通知APIへの `urllib` リクエストのスパン
 
-なお、ローカル環境用の `Containerfile` を使ったコンテナイメージであり、`tf/modules/main.tf` でデプロイしている本番のZipパッケージ形式のLambda関数には `opentelemetry` パッケージが含まれないため、OTel の Python計装レイヤー（コミュニティ製）と ADOT Collectorレイヤーを付与（`tf/main.tf` の `otel_layer_arns`）してLambdaに提供している。Collectorの設定は zip に同梱した `src/anime_schedules/collector.yaml` を使い、トレースを X-Ray、メトリクスを CloudWatch (EMF) に送信する。
+なお、ローカル環境用の `Containerfile` を使ったコンテナイメージであり、`tf/modules/main.tf` でデプロイしている本番のZipパッケージ形式のLambda関数には `opentelemetry` パッケージが含まれないため、OTel の Python計装レイヤーと Collectorレイヤー（どちらもコミュニティ製）を付与（`tf/main.tf` の `otel_layer_arns`）してLambdaに提供している。Collectorの設定は zip に同梱した `src/anime_schedules/collector.yaml` を使い、トレースとメトリクスを Grafana Cloud に OTLP で送信する。
+
+Grafana Cloud に送るための Authorization ヘッダーの値（`Basic <base64(スタックの ID:トークン)>`）は、SSM Parameter Store の `/app/grafana/prod/otlp_auth`（SecureString）に置かれている前提で、パラメータはこのリポジトリの外で作成・管理する。Collectorレイヤーは SSM Parameter Store を読めないため、Terraform がこのパラメータを読み、Lambda の環境変数 `GRAFANA_CLOUD_OTLP_AUTH` に渡す（値は Terraform の state と Lambda の環境変数に残る）。
+
+メトリクスは累積値（cumulative）で送る。1日1回の実行でほぼ毎回コールドスタートになり、カウンタは毎回 0 から数え直すため、Grafana では `increase()` ではなく、その日の値（例: `max_over_time(...[1d])`）で見る。
 
 
 ## Deployment
