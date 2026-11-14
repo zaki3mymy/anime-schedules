@@ -1,8 +1,6 @@
 # Lambda の Collector レイヤー（opentelemetry-lambda のコミュニティ製）の設定。
 # アプリ（Python 計装レイヤー）から OTLP で受けて、Grafana Cloud に otlphttp で送る。
 # 送信先と Authorization ヘッダーの値は、Lambda の環境変数で渡す（tf/modules/main.tf）。
-# decouple processor で、Lambda の応答を返してから送るようにする（実行の終わりに Grafana Cloud への
-# 送信を待たない）。送り終わるまで実行環境は止められない。
 receivers:
   otlp:
     protocols:
@@ -12,6 +10,34 @@ receivers:
         endpoint: localhost:4318
 
 processors:
+  # Grafana Cloud に出したくない値を、送る前に消す・伏せる。
+  #   - cloud.account.id・cloud.resource_id: Lambda の計装が実行の span に付ける AWS のアカウント ID と関数の ARN
+  #   - http.url: urllib の計装が、呼び出し先の URL をそのまま span とメトリクス（http.client.duration など）に付ける。
+  #     通知 API（nandemo-oshirase）の URL には API Gateway のホストが入るので、
+  #     span ではホストだけを伏せ（Annict の URL は調べるときに役立つので残す）、
+  #     メトリクスでは属性ごと消す（Annict の URL のクエリには日付が入り、系列が毎日増えるため）
+  transform/redact:
+    error_mode: ignore
+    trace_statements:
+      - context: span
+        statements:
+          - delete_key(attributes, "cloud.account.id")
+          - delete_key(attributes, "cloud.resource_id")
+          - replace_pattern(attributes["http.url"], "://[^/]+\\.execute-api\\.[^/]+\\.amazonaws\\.com", "://{nandemo-oshirase}")
+      - context: resource
+        statements:
+          - delete_key(attributes, "cloud.account.id")
+          - delete_key(attributes, "cloud.resource_id")
+    metric_statements:
+      - context: datapoint
+        statements:
+          - delete_key(attributes, "http.url")
+      - context: resource
+        statements:
+          - delete_key(attributes, "cloud.account.id")
+          - delete_key(attributes, "cloud.resource_id")
+  # Lambda の応答を返してから送るようにする（実行の終わりに Grafana Cloud への送信を待たない）。
+  # 送り終わるまで実行環境は止められない。パイプラインの最後に置く
   decouple:
 
 exporters:
@@ -24,9 +50,9 @@ service:
   pipelines:
     traces:
       receivers: [otlp]
-      processors: [decouple]
+      processors: [transform/redact, decouple]
       exporters: [otlphttp/grafana_cloud]
     metrics:
       receivers: [otlp]
-      processors: [decouple]
+      processors: [transform/redact, decouple]
       exporters: [otlphttp/grafana_cloud]
