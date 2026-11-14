@@ -19,5 +19,15 @@ variable "notify_endpoint" {
 
 variable "otel_layer_arns" {
   type        = list(string)
-  description = "ARNs of the OpenTelemetry Lambda layers (Python instrumentation + ADOT collector)"
+  description = "ARNs of the OpenTelemetry Lambda layers (Python instrumentation + collector)"
+}
+
+variable "grafana_otlp_endpoint" {
+  type        = string
+  description = "OTLP endpoint of Grafana Cloud (the stack's OTLP URL with /otlp appended)"
+}
+
+variable "grafana_otlp_auth_parameter" {
+  type        = string
+  description = "Name of the SSM parameter that holds the Authorization header value for Grafana Cloud OTLP"
 }

@@ -21,15 +21,12 @@ resource "aws_iam_role_policy_attachment" "basic_execution" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
 
-resource "aws_iam_role_policy_attachment" "xray" {
-  role       = aws_iam_role.main.name
-  policy_arn = "arn:aws:iam::aws:policy/AWSXRayDaemonWriteAccess"
-}
 
-# awsemf エクスポーターで CloudWatch にメトリクスを送信するため
-resource "aws_iam_role_policy_attachment" "cloudwatch_metrics" {
-  role       = aws_iam_role.main.name
-  policy_arn = "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"
+# Grafana Cloud に OTLP で送るための Authorization ヘッダーの値（Basic <base64(スタックの ID:トークン)>）。
+# SSM Parameter Store に置かれている（このリポジトリの外で管理する）。
+# Lambda の Collector レイヤーは SSM を読めないため、ここで読んで Lambda の環境変数に渡す
+data "aws_ssm_parameter" "grafana_otlp_auth" {
+  name = var.grafana_otlp_auth_parameter
 }
 
 # Lambda
@@ -48,8 +45,10 @@ resource "aws_lambda_function" "main" {
   # zipには opentelemetry パッケージが含まれないため、Layerから提供する
   # AWS_LAMBDA_EXEC_WRAPPER（下記environment）でPython計装レイヤーがlambda_handlerをラップする
   layers = var.otel_layer_arns
+  # X-Ray にはトレースを送らない（Grafana Cloud に送る）。
+  # ブロックを消すだけでは今の設定（Active）が残るため、PassThrough を明示する
   tracing_config {
-    mode = "Active"
+    mode = "PassThrough"
   }
   environment {
     variables = {
@@ -57,14 +56,20 @@ resource "aws_lambda_function" "main" {
       # zipに同梱した collector.yaml を使う(/var/task はLambdaのコード展開先)
       "OPENTELEMETRY_COLLECTOR_CONFIG_URI" = "/var/task/collector.yaml"
       "OTEL_SERVICE_NAME"                  = var.appname
-      "OTEL_TRACES_EXPORTER"               = "otlp"
-      "OTEL_METRICS_EXPORTER"              = "otlp"
-      # 1日1回の実行でほぼ毎回コールドスタートになるため、累積値だと awsemf が
-      # 初回データポイントを基準値として捨ててしまう。DELTA で送信する
-      "OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE" = "DELTA"
-      "ANNICT_TOKEN"                                      = var.annict_token
-      "NOTIFY_API_KEY"                                    = var.notify_api_key
-      "NOTIFY_ENDPOINT"                                   = var.notify_endpoint
+      # 環境。Grafana で絞り込むために付ける（このアプリは本番だけ）。
+      # deployment.environment.name は新しいセマンティック規約の名前で、古い名前も一緒に付けておく
+      "OTEL_RESOURCE_ATTRIBUTES" = "deployment.environment.name=prod,deployment.environment=prod"
+      "OTEL_TRACES_EXPORTER"     = "otlp"
+      "OTEL_METRICS_EXPORTER"    = "otlp"
+      # メトリクスは SDK の既定の cumulative（累積値）で送る（Grafana Cloud は Prometheus 互換で累積値を前提にする）。
+      # 1日1回の実行でほぼ毎回コールドスタートになり、カウンタは毎回 0 から数え直すため、
+      # Grafana では increase() ではなく、その日の値（例: max_over_time(...[1d])）で見る
+      # collector.yaml が読む、Grafana Cloud の OTLP の送信先と Authorization ヘッダーの値
+      "GRAFANA_CLOUD_OTLP_ENDPOINT" = var.grafana_otlp_endpoint
+      "GRAFANA_CLOUD_OTLP_AUTH"     = data.aws_ssm_parameter.grafana_otlp_auth.value
+      "ANNICT_TOKEN"                = var.annict_token
+      "NOTIFY_API_KEY"              = var.notify_api_key
+      "NOTIFY_ENDPOINT"             = var.notify_endpoint
     }
   }
   timeout = 30
