@@ -87,6 +87,8 @@ lambda → OTLP(HTTP:4318) → otel-collector
 
 Grafana Cloud に送るための Authorization ヘッダーの値（`Basic <base64(スタックの ID:トークン)>`）は、SSM Parameter Store の `/app/grafana/prod/otlp_auth`（SecureString）に置かれている前提で、パラメータはこのリポジトリの外で作成・管理する。Collectorレイヤーは SSM Parameter Store を読めないため、Terraform がこのパラメータを読み、Lambda の環境変数 `GRAFANA_CLOUD_OTLP_AUTH` に渡す（値は Terraform の state と Lambda の環境変数に残る）。
 
+Lambda の計装が付ける AWS のアカウント ID（`cloud.account.id`）と関数の ARN（`cloud.resource_id`）は、Collector で消してから送る。urllib の計装が付ける呼び出し先の URL（`http.url`）は、span では通知 API の API Gateway のホストだけを `{nandemo-oshirase}` に置き換え、メトリクスでは属性ごと消す（Annict の URL のクエリに日付が入り、メトリクスの系列が毎日増えるため）。
+
 メトリクスは累積値（cumulative）で送る。1日1回の実行でほぼ毎回コールドスタートになり、カウンタは毎回 0 から数え直すため、Grafana では `increase()` ではなく、その日の値（例: `max_over_time(...[1d])`）で見る。
 
 
