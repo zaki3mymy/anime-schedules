@@ -2,10 +2,11 @@ import json
 import logging
 import os
 from datetime import UTC, datetime, timedelta
+from urllib.error import HTTPError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
-from opentelemetry import metrics, trace
+from opentelemetry import metrics, propagate, trace
 
 ANNICT_ENDPOINT = "https://api.annict.com"
 
@@ -109,10 +110,27 @@ def _push_message(messages: list[dict[str, str]]):
 
     texts = [m["text"] for m in messages]
     body = {"messages": texts}
-    req = Request(url, json.dumps(body).encode("utf-8"), headers=headers, method="POST")
     try:
-        with urlopen(req) as res:
-            res.read()
+        # 本番の OTel の Python 計装レイヤーには urllib の計装が入っていないため、
+        # 通知 API の呼び出しの span は自前で作り、traceparent をヘッダーに入れる。
+        # nandemo-oshirase はこのヘッダーを読むので、Grafana で1つのトレースとして追える。
+        # URL（API Gateway のホスト）は span に付けない
+        with _tracer.start_as_current_span(
+            "POST /notify",
+            kind=trace.SpanKind.CLIENT,
+            attributes={"http.request.method": "POST"},
+        ) as span:
+            propagate.inject(headers)
+            req = Request(
+                url, json.dumps(body).encode("utf-8"), headers=headers, method="POST"
+            )
+            try:
+                with urlopen(req) as res:
+                    res.read()
+                    span.set_attribute("http.response.status_code", res.status)
+            except HTTPError as e:
+                span.set_attribute("http.response.status_code", e.code)
+                raise
     except Exception:
         _notification_counter.add(1, {"status": "error"})
         raise

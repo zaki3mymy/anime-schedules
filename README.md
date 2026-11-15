@@ -81,13 +81,17 @@ lambda → OTLP(HTTP:4318) → otel-collector
 
 `lambda` サービスは [OpenTelemetry の自動計装](https://opentelemetry.io/docs/zero-code/python/) (`opentelemetry-instrument`) 経由で起動しており、コード変更なしに以下のスパンが記録される。
 - Lambda呼び出し全体（EventBridgeトリガー）のスパン
-- Annict API・通知APIへの `urllib` リクエストのスパン
+- Annict API・通知APIへの `urllib` リクエストのスパン（ローカルのみ。下記のとおり本番のレイヤーには urllib の計装が無い）
 
 なお、ローカル環境用の `Containerfile` を使ったコンテナイメージであり、`tf/modules/main.tf` でデプロイしている本番のZipパッケージ形式のLambda関数には `opentelemetry` パッケージが含まれないため、OTel の Python計装レイヤーと Collectorレイヤー（どちらもコミュニティ製）を付与（`tf/main.tf` の `otel_layer_arns`）してLambdaに提供している。Collectorの設定は zip に同梱した `src/anime_schedules/collector.yaml` を使い、トレースとメトリクスを Grafana Cloud に OTLP で送信する。
 
 Grafana Cloud に送るための Authorization ヘッダーの値（`Basic <base64(スタックの ID:トークン)>`）は、SSM Parameter Store の `/app/grafana/prod/otlp_auth`（SecureString）に置かれている前提で、パラメータはこのリポジトリの外で作成・管理する。Collectorレイヤーは SSM Parameter Store を読めないため、Terraform がこのパラメータを読み、Lambda の環境変数 `GRAFANA_CLOUD_OTLP_AUTH` に渡す（値は Terraform の state と Lambda の環境変数に残る）。
 
-Lambda の計装が付ける AWS のアカウント ID（`cloud.account.id`）と関数の ARN（`cloud.resource_id`）は、Collector で消してから送る。urllib の計装が付ける呼び出し先の URL（`http.url`）は、span では通知 API の API Gateway のホストだけを `{nandemo-oshirase}` に置き換え、メトリクスでは属性ごと消す（Annict の URL のクエリに日付が入り、メトリクスの系列が毎日増えるため）。
+Lambda の計装が付ける AWS のアカウント ID（`cloud.account.id`）と関数の ARN（`cloud.resource_id`）は、Collector で消してから送る。
+
+本番の Python計装レイヤーには urllib の計装（`opentelemetry-instrumentation-urllib`）が入っていない。そのため、通知APIの呼び出しはコードで CLIENT の span（`POST /notify`）を作り、`traceparent` ヘッダーを付けて送る。nandemo-oshirase はこのヘッダーを読むので、Grafana で anime-schedules と nandemo-oshirase を1つのトレースとして追える。この span には URL を付けない（API Gateway のホストを出さないため）。
+
+urllib の計装が付ける呼び出し先の URL（`http.url`）は、span では通知 API の API Gateway のホストだけを `{nandemo-oshirase}` に置き換え、メトリクスでは属性ごと消す（Annict の URL のクエリに日付が入り、メトリクスの系列が毎日増えるため）。本番では今は urllib の計装が動かないが、計装を入れたときに備えて Collector の設定は残している。
 
 メトリクスは累積値（cumulative）で送る。1日1回の実行でほぼ毎回コールドスタートになり、カウンタは毎回 0 から数え直すため、Grafana では `increase()` ではなく、その日の値（例: `max_over_time(...[1d])`）で見る。
 
