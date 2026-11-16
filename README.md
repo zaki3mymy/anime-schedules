@@ -83,7 +83,12 @@ lambda → OTLP(HTTP:4318) → otel-collector
 - Lambda呼び出し全体（EventBridgeトリガー）のスパン
 - Annict API・通知APIへの `urllib` リクエストのスパン
 
-なお、ローカル環境用の `Containerfile` を使ったコンテナイメージであり、`tf/modules/main.tf` でデプロイしている本番のZipパッケージ形式のLambda関数には `opentelemetry` パッケージが含まれないため、OTel の Python計装レイヤーと Collectorレイヤー（どちらもコミュニティ製）を付与（`tf/main.tf` の `otel_layer_arns`）してLambdaに提供している。Collectorの設定は zip に同梱した `src/anime_schedules/collector.yaml` を使い、トレースとメトリクスを Grafana Cloud に OTLP で送信する。
+なお、ローカル環境用の `Containerfile` を使ったコンテナイメージであり、`tf/modules/main.tf` でデプロイしている本番のZipパッケージ形式のLambda関数には `opentelemetry` パッケージが含まれないため、OTel の Python計装レイヤーと Collectorレイヤー（どちらもコミュニティ製）を付与（`tf/main.tf` の `otel_layer_arns`）してLambdaに提供している。
+
+コミュニティの Python計装レイヤーには urllib の計装（`opentelemetry-instrumentation-urllib`）が入っていない。urllib の計装が無いと、通知APIへのリクエストに `traceparent` が付かず、nandemo-oshirase と1つのトレースにならない（[#35](https://github.com/zaki3mymy/anime-schedules/issues/35)）。そのため、urllib の計装だけを入れたレイヤーを自前で作り、コミュニティのレイヤーに重ねている（`tf/modules/main.tf` の `aws_lambda_layer_version.otel_urllib`）。
+
+- zip は `scripts/build_otel_urllib_layer.py` で作る（`deploy.yml` で Terraform の前に実行する）。依存するパッケージはコミュニティのレイヤーにあるので、urllib の計装だけを `--no-deps` で入れる。同じバージョンなら zip のハッシュは変わらないので、レイヤーは作り直されない。
+- バージョンは `uv.lock` のものを使う。`pyproject.toml` の OTel の依存は、コミュニティの Python計装レイヤー（タグの `requirements.txt`）と同じバージョンに `==` で固定している（ローカルと本番のバージョンをそろえるため）。レイヤーを上げるときは一緒に上げる。Dependabot では OTel のパッケージを上げない（`.github/dependabot.yml` の `ignore`）。Collectorの設定は zip に同梱した `src/anime_schedules/collector.yaml` を使い、トレースとメトリクスを Grafana Cloud に OTLP で送信する。
 
 Grafana Cloud に送るための Authorization ヘッダーの値（`Basic <base64(スタックの ID:トークン)>`）は、SSM Parameter Store の `/app/grafana/prod/otlp_auth`（SecureString）に置かれている前提で、パラメータはこのリポジトリの外で作成・管理する。Collectorレイヤーは SSM Parameter Store を読めないため、Terraform がこのパラメータを読み、Lambda の環境変数 `GRAFANA_CLOUD_OTLP_AUTH` に渡す（値は Terraform の state と Lambda の環境変数に残る）。
 
