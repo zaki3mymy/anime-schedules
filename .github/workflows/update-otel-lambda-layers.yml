@@ -27,5 +27,5 @@ jobs:
     with:
       terraform-files: tf/main.tf
     secrets:
-      BACK_MERGE_APP_CLIENT_ID: ${{ secrets.BACK_MERGE_APP_CLIENT_ID }}
-      BACK_MERGE_APP_PRIVATE_KEY: ${{ secrets.BACK_MERGE_APP_PRIVATE_KEY }}
+      PR_APP_CLIENT_ID: ${{ secrets.DEPENDENCY_UPDATER_APP_CLIENT_ID }}
+      PR_APP_PRIVATE_KEY: ${{ secrets.DEPENDENCY_UPDATER_APP_PRIVATE_KEY }}
