@@ -89,7 +89,7 @@ lambda → OTLP(HTTP:4318) → otel-collector
 
 - zip は `scripts/build_otel_urllib_layer.py` で作る（`deploy.yml` で Terraform の前に実行する）。依存するパッケージはコミュニティのレイヤーにあるので、urllib の計装だけを `--no-deps` で入れる。同じバージョンなら zip のハッシュは変わらないので、レイヤーは作り直されない。
 - バージョンは `uv.lock` のものを使う。`pyproject.toml` の OTel の依存は、コミュニティの Python計装レイヤー（タグの `requirements.txt`）と同じバージョンに `==` で固定している（ローカルと本番のバージョンをそろえるため）。Dependabot では OTel のパッケージを上げない（`.github/dependabot.yml` の `ignore`）。
-- コミュニティのレイヤーの新しいバージョンは、`.github/workflows/update-otel-lambda-layers.yml` が見つけて、`tf/main.tf` の ARN と `pyproject.toml`・`uv.lock` の OTel の依存を一緒に上げる PR を作る（中身は zaki3mymy/actions の再利用ワークフロー）。opentelemetry-lambda のリリースは feed-release-invoke-workflow の `repository_dispatch`（`otel-lambda-release`）で知り、取りこぼしに備えて週1回の `schedule` でも確認する。
+- コミュニティのレイヤーの新しいバージョンは、`.github/workflows/update-otel-lambda-layers.yml` が見つけて、`tf/main.tf` の ARN と `pyproject.toml`・`uv.lock` の OTel の依存を一緒に上げる PR を作る。opentelemetry-lambda のリリースは feed-release-invoke-workflow の `repository_dispatch`（`otel-lambda-release`）で知り、取りこぼしに備えて週1回の `schedule` でも確認する。
 
 Grafana Cloud に送るための Authorization ヘッダーの値（`Basic <base64(スタックの ID:トークン)>`）は、SSM Parameter Store の `/app/grafana/prod/otlp_auth`（SecureString）に置かれている前提で、パラメータはこのリポジトリの外で作成・管理する。Collectorレイヤーは SSM Parameter Store を読めないため、Terraform がこのパラメータを読み、Lambda の環境変数 `GRAFANA_CLOUD_OTLP_AUTH` に渡す（値は Terraform の state と Lambda の環境変数に残る）。
 
