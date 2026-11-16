@@ -16,8 +16,6 @@ processors:
   #     通知 API（nandemo-oshirase）の URL には API Gateway のホストが入るので、
   #     span ではホストだけを伏せ（Annict の URL は調べるときに役立つので残す）、
   #     メトリクスでは属性ごと消す（Annict の URL のクエリには日付が入り、系列が毎日増えるため）
-  #     ※ 今の Python 計装レイヤーには urllib の計装が入っていないので本番では付かないが、
-  #       計装を入れたときに URL が出ないよう残しておく（通知 API の span は lambda_function.py で URL を付けずに作っている）
   transform/redact:
     error_mode: ignore
     trace_statements:
