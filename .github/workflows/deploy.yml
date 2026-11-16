@@ -7,12 +7,18 @@ on:
     paths:
       - 'src/**'
       - 'tf/**'
+      # urllib のレイヤーのバージョン（uv.lock）とビルドのスクリプト
+      - 'uv.lock'
+      - 'scripts/**'
   push:
     branches:
       - main
     paths:
       - 'src/**'
       - 'tf/**'
+      # urllib のレイヤーのバージョン（uv.lock）とビルドのスクリプト
+      - 'uv.lock'
+      - 'scripts/**'
 
 # AWSとOIDC連携するには必要な設定らしい
 permissions:
@@ -37,6 +43,10 @@ jobs:
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ap-northeast-1
+
+      - name: Build the urllib instrumentation layer
+        # tf/modules/main.tf の aws_lambda_layer_version.otel_urllib が使う zip（dist/otel-urllib-layer.zip）を作る
+        run: python3 scripts/build_otel_urllib_layer.py
 
       - name: Fetch Terraform variables from Parameter Store
         working-directory: tf
@@ -81,6 +91,10 @@ jobs:
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ap-northeast-1
+
+      - name: Build the urllib instrumentation layer
+        # tf/modules/main.tf の aws_lambda_layer_version.otel_urllib が使う zip（dist/otel-urllib-layer.zip）を作る
+        run: python3 scripts/build_otel_urllib_layer.py
 
       - name: Fetch Terraform variables from Parameter Store
         working-directory: tf

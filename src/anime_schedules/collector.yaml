@@ -12,7 +12,8 @@ receivers:
 processors:
   # Grafana Cloud に出したくない値を、送る前に消す・伏せる。
   #   - cloud.account.id・cloud.resource_id: Lambda の計装が実行の span に付ける AWS のアカウント ID と関数の ARN
-  #   - http.url: urllib の計装が、呼び出し先の URL をそのまま span とメトリクス（http.client.duration など）に付ける。
+  #   - http.url: urllib の計装（自前のレイヤーで足している。tf/modules/main.tf）が、
+  #     呼び出し先の URL をそのまま span とメトリクス（http.client.duration など）に付ける。
   #     通知 API（nandemo-oshirase）の URL には API Gateway のホストが入るので、
   #     span ではホストだけを伏せ（Annict の URL は調べるときに役立つので残す）、
   #     メトリクスでは属性ごと消す（Annict の URL のクエリには日付が入り、系列が毎日増えるため）

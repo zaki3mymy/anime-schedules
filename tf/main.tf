@@ -31,6 +31,8 @@ locals {
   # バージョンは https://github.com/open-telemetry/opentelemetry-lambda/releases で確認
   # （layer-python/<version>・layer-collector/<version> のタグ）
   # コレクターは OTLP を受けて、Grafana Cloud に otlphttp で送る（src/anime_schedules/collector.yaml）
+  # Python計装レイヤーを上げるときは、pyproject.toml の OTel の依存も、そのレイヤーの requirements.txt と
+  # 同じバージョンにする（ローカルと本番をそろえる。自前の urllib のレイヤーも uv.lock のバージョンで作る）
   otel_layer_arns = [
     "arn:aws:lambda:ap-northeast-1:184161586896:layer:opentelemetry-python-0_21_0:1",
     "arn:aws:lambda:ap-northeast-1:184161586896:layer:opentelemetry-collector-amd64-0_24_0:1",
@@ -51,6 +53,8 @@ module "main" {
   notify_api_key  = var.notify_api_key
   notify_endpoint = var.notify_endpoint
   otel_layer_arns = local.otel_layer_arns
+  # scripts/build_otel_urllib_layer.py の出力先
+  otel_urllib_layer_zip_path = "${path.root}/../dist/otel-urllib-layer.zip"
 
   grafana_otlp_endpoint       = local.grafana_otlp_endpoint
   grafana_otlp_auth_parameter = local.grafana_otlp_auth_parameter

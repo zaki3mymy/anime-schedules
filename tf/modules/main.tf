@@ -35,6 +35,18 @@ data "archive_file" "main" {
   source_dir  = "${path.root}/../src/anime_schedules/"
   output_path = "${path.root}/../dist/src.zip"
 }
+# urllib の計装（opentelemetry-instrumentation-urllib）だけを入れたレイヤー。
+# コミュニティの Python 計装レイヤーには urllib の計装が無いため、自前で足す（Issue #35）。
+# zip は scripts/build_otel_urllib_layer.py で作る（CI の deploy.yml で terraform の前に実行する）。
+# 同じバージョンなら zip のハッシュは変わらないので、レイヤーは作り直されない
+resource "aws_lambda_layer_version" "otel_urllib" {
+  layer_name          = "${var.appname}-otel-urllib"
+  description         = "opentelemetry-instrumentation-urllib for ${var.appname}"
+  filename            = var.otel_urllib_layer_zip_path
+  source_code_hash    = filebase64sha256(var.otel_urllib_layer_zip_path)
+  compatible_runtimes = ["python3.13"]
+}
+
 resource "aws_lambda_function" "main" {
   function_name    = var.appname
   role             = aws_iam_role.main.arn
@@ -44,7 +56,8 @@ resource "aws_lambda_function" "main" {
   source_code_hash = data.archive_file.main.output_base64sha256
   # zipには opentelemetry パッケージが含まれないため、Layerから提供する
   # AWS_LAMBDA_EXEC_WRAPPER（下記environment）でPython計装レイヤーがlambda_handlerをラップする
-  layers = var.otel_layer_arns
+  # 自前の urllib のレイヤーは、コミュニティのレイヤーのあとに重ねる（どれも /opt/python に展開される）
+  layers = concat(var.otel_layer_arns, [aws_lambda_layer_version.otel_urllib.arn])
   # X-Ray にはトレースを送らない（Grafana Cloud に送る）。
   # ブロックを消すだけでは今の設定（Active）が残るため、PassThrough を明示する
   tracing_config {
