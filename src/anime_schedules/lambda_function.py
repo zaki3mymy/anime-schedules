@@ -134,6 +134,11 @@ def lambda_handler(event, context):
     messages = _change_message_format(schedules)
     logger.info(json.dumps({"send_messages": messages}, ensure_ascii=False))
 
+    # 放送予定が無い日は通知しない（通知 API は空のメッセージを 400 で返す）
+    if not messages:
+        logger.info("No programs today, skipping notification")
+        return
+
     _push_message(messages)
 
 
