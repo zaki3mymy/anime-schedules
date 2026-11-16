@@ -4,7 +4,7 @@
 自前のレイヤーで足す（https://github.com/zaki3mymy/anime-schedules/issues/35）。
 
 - バージョンは uv.lock のものを使う。uv.lock の OTel の依存は、コミュニティのレイヤーと同じバージョンに
-  固定している（zaki3mymy/actions の update-otel-lambda-layers.yml が上げる）
+  固定している
 - 依存するパッケージ（opentelemetry-instrumentation など）はコミュニティのレイヤーにあるので、--no-deps で入れる
 - zip は、同じバージョンなら毎回同じ中身（ハッシュ）になるように作る。
   Terraform の source_code_hash が変わらなければ、レイヤーは作り直されない
