@@ -22,7 +22,7 @@ Annict で「見てるアニメ」に登録しているアニメのうち、今�
 
 実行に必要なソフトウェア。
 - Python 3.13
-- [uv](https://docs.astral.sh/uv/)（Python の依存関係の管理）
+- [uv](https://docs.astral.sh/uv/)（Python の依存関係の管理）。バージョンは `pyproject.toml` の `[tool.uv] required-version` の範囲のもの（CI も同じ範囲の uv を使う）
 - Terraform 1.10
 
 その他、必要となるアカウント。
