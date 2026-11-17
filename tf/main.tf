@@ -35,7 +35,7 @@ locals {
   # pyproject.toml・uv.lock の OTel の依存を一緒に上げる PR を作る（ローカルと本番をそろえる。
   # 自前の urllib のレイヤーも uv.lock のバージョンで作る）。手で上げるときも、両方を同じバージョンにする
   otel_layer_arns = [
-    "arn:aws:lambda:ap-northeast-1:184161586896:layer:opentelemetry-python-0_21_0:1",
+    "arn:aws:lambda:ap-northeast-1:184161586896:layer:opentelemetry-python-0_22_0:1",
     "arn:aws:lambda:ap-northeast-1:184161586896:layer:opentelemetry-collector-amd64-0_24_0:1",
   ]
 
