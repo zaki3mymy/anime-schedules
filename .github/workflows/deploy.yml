@@ -1,15 +1,9 @@
 name: Terraform Deployment
 
+# main への push で apply する（PR の plan は ci.yml）
 on:
   workflow_dispatch:
 
-  pull_request:
-    paths:
-      - 'src/**'
-      - 'tf/**'
-      # urllib のレイヤーのバージョン（uv.lock）とビルドのスクリプト
-      - 'uv.lock'
-      - 'scripts/**'
   push:
     branches:
       - main
@@ -19,6 +13,7 @@ on:
       # urllib のレイヤーのバージョン（uv.lock）とビルドのスクリプト
       - 'uv.lock'
       - 'scripts/**'
+      - '.github/workflows/deploy.yml'
 
 # AWSとOIDC連携するには必要な設定らしい
 permissions:
@@ -26,54 +21,6 @@ permissions:
   contents: read
 
 jobs:
-  terraform-plan:
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v7
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v4
-        with:
-          terraform_version: 1.17.1
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v6
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: ap-northeast-1
-
-      - name: Build the urllib instrumentation layer
-        # tf/modules/main.tf の aws_lambda_layer_version.otel_urllib が使う zip（dist/otel-urllib-layer.zip）を作る
-        run: python3 scripts/build_otel_urllib_layer.py
-
-      - name: Fetch Terraform variables from Parameter Store
-        working-directory: tf
-        run: |
-          annict_token=$(aws ssm get-parameter --name "/app/anime_schedules/annict_token" --with-decryption --query "Parameter.Value" --output text)
-          notify_api_key=$(aws ssm get-parameter --name "/app/anime_schedules/notify_api_key" --with-decryption --query "Parameter.Value" --output text)
-          notify_endpoint=$(aws ssm get-parameter --name "/app/anime_schedules/notify_endpoint" --with-decryption --query "Parameter.Value" --output text)
-          cat <<EOF > terraform.tfvars
-          annict_token    = "$annict_token"
-          notify_api_key  = "$notify_api_key"
-          notify_endpoint = "$notify_endpoint"
-          EOF
-
-      - name: Initialize Terraform
-        working-directory: tf
-        run: terraform init -backend-config="bucket=${{ vars.S3_BUCKET_FOR_STATE }}" -backend-config="key=anime-schedules/terraform.tfstate" -backend-config="region=ap-northeast-1"
-
-      - name: Run Terraform Plan
-        working-directory: tf
-        run: terraform plan -var-file=terraform.tfvars -out=tfplan
-
-      - name: Upload Terraform Plan as Artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: terraform-plan
-          path: tf/tfplan
-
   terraform-apply:
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
@@ -87,10 +34,13 @@ jobs:
           terraform_version: 1.17.1
 
       - name: Configure AWS credentials
+        id: aws
         uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ap-northeast-1
+          # terraform の出力の ARN に出るアカウント ID を、ログでマスクする
+          mask-aws-account-id: true
 
       - name: Build the urllib instrumentation layer
         # tf/modules/main.tf の aws_lambda_layer_version.otel_urllib が使う zip（dist/otel-urllib-layer.zip）を作る
@@ -102,6 +52,10 @@ jobs:
           annict_token=$(aws ssm get-parameter --name "/app/anime_schedules/annict_token" --with-decryption --query "Parameter.Value" --output text)
           notify_api_key=$(aws ssm get-parameter --name "/app/anime_schedules/notify_api_key" --with-decryption --query "Parameter.Value" --output text)
           notify_endpoint=$(aws ssm get-parameter --name "/app/anime_schedules/notify_endpoint" --with-decryption --query "Parameter.Value" --output text)
+          # SSM の値は Secrets ではないので自動ではマスクされない
+          echo "::add-mask::$annict_token"
+          echo "::add-mask::$notify_api_key"
+          echo "::add-mask::$notify_endpoint"
           cat <<EOF > terraform.tfvars
           annict_token    = "$annict_token"
           notify_api_key  = "$notify_api_key"

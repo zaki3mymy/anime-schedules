@@ -1,7 +1,6 @@
 name: CI
 
-# AWS の認証情報（シークレット）を使わないジョブだけで構成している。
-# Dependabot の PR ではシークレットが渡されないが、この CI はそのまま動く。
+# AWS の認証情報を使うのは terraform-plan だけ（Dependabot の PR では Dependabot secrets を使う）
 on:
   pull_request:
     branches: [main]
@@ -13,6 +12,7 @@ on:
       - "uv.lock"
       - ".python-version"
       - "Containerfile"
+      - "scripts/**"
       - ".github/workflows/ci.yml"
   push:
     branches: [main]
@@ -24,6 +24,7 @@ on:
       - "uv.lock"
       - ".python-version"
       - "Containerfile"
+      - "scripts/**"
       - ".github/workflows/ci.yml"
   workflow_dispatch:
 
@@ -113,3 +114,113 @@ jobs:
 
       - name: Terraform validate
         run: terraform -chdir=tf validate
+
+  terraform-plan:
+    name: Terraform Plan
+    if: github.event_name == 'pull_request'
+    needs: terraform
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+      pull-requests: write # plan の結果を PR にコメントするため
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          # deploy.yml と揃える
+          terraform_version: 1.17.1
+
+      - name: Configure AWS credentials
+        id: aws
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ap-northeast-1
+          # terraform の出力の ARN に出るアカウント ID を、ログでマスクする
+          mask-aws-account-id: true
+
+      - name: Build the urllib instrumentation layer
+        # tf/modules/main.tf の aws_lambda_layer_version.otel_urllib が使う zip（dist/otel-urllib-layer.zip）を作る
+        run: python3 scripts/build_otel_urllib_layer.py
+
+      - name: Fetch Terraform variables from Parameter Store
+        working-directory: tf
+        run: |
+          annict_token=$(aws ssm get-parameter --name "/app/anime_schedules/annict_token" --with-decryption --query "Parameter.Value" --output text)
+          notify_api_key=$(aws ssm get-parameter --name "/app/anime_schedules/notify_api_key" --with-decryption --query "Parameter.Value" --output text)
+          notify_endpoint=$(aws ssm get-parameter --name "/app/anime_schedules/notify_endpoint" --with-decryption --query "Parameter.Value" --output text)
+          # SSM の値は Secrets ではないので自動ではマスクされない
+          echo "::add-mask::$annict_token"
+          echo "::add-mask::$notify_api_key"
+          echo "::add-mask::$notify_endpoint"
+          cat <<EOF > terraform.tfvars
+          annict_token    = "$annict_token"
+          notify_api_key  = "$notify_api_key"
+          notify_endpoint = "$notify_endpoint"
+          EOF
+
+      - name: Initialize Terraform
+        working-directory: tf
+        run: terraform init -backend-config="bucket=${{ vars.S3_BUCKET_FOR_STATE }}" -backend-config="key=anime-schedules/terraform.tfstate" -backend-config="region=ap-northeast-1"
+
+      - name: Run Terraform Plan
+        id: plan
+        working-directory: tf
+        # コメント用にファイルにも保存する。shell を明示して pipefail を有効にする
+        shell: bash
+        run: terraform plan -no-color -var-file=terraform.tfvars 2>&1 | tee "$RUNNER_TEMP/plan.txt"
+
+      - name: Comment plan result
+        # plan が失敗した場合も、エラーの内容を PR に残す
+        if: always() && (steps.plan.outcome == 'success' || steps.plan.outcome == 'failure')
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          PLAN_FILE: ${{ runner.temp }}/plan.txt
+          PLAN_OUTCOME: ${{ steps.plan.outcome }}
+          AWS_ACCOUNT_ID: ${{ steps.aws.outputs.aws-account-id }}
+        with:
+          script: |
+            const fs = require('fs')
+            let plan = fs.existsSync(process.env.PLAN_FILE)
+              ? fs.readFileSync(process.env.PLAN_FILE, 'utf8')
+              : '(plan の出力がありません)'
+
+            // add-mask はコメントには効かないので、アカウント ID と SSM の値を *** に置き換える
+            const secrets = [process.env.AWS_ACCOUNT_ID]
+            for (const line of fs.readFileSync('tf/terraform.tfvars', 'utf8').split('\n')) {
+              const m = line.match(/^\s*\w+\s*=\s*"(.*)"\s*$/)
+              if (m && m[1]) secrets.push(m[1])
+            }
+            for (const v of secrets.filter((v) => v)) {
+              plan = plan.split(v).join('***')
+            }
+
+            // 既存リソースの読み込みの行（Refreshing state... など）を除く
+            const noise = /^\S.*: (Refreshing state\.\.\.|Reading\.\.\.|Read complete after|Preparing import\.\.\.)/
+            plan = plan.split('\n').filter((line) => !noise.test(line)).join('\n').trim()
+
+            // PR のコメントは 65,536 文字までなので、長すぎる場合は末尾を残して切り詰める
+            const limit = 60000
+            if (plan.length > limit) {
+              plan = '... (先頭を省略。全文は Actions のログを参照) ...\n' + plan.slice(-limit)
+            }
+
+            let body = '## Terraform Plan\n\n'
+            if (process.env.PLAN_OUTCOME !== 'success') {
+              body += ':x: **plan に失敗しました。**\n\n'
+            }
+            if (process.env.PLAN_OUTCOME === 'success' && plan.includes('No changes.')) {
+              body += 'No changes.'
+            } else {
+              body += ['<details>', '<summary>Show plan</summary>', '', '```', plan, '```', '', '</details>'].join('\n')
+            }
+
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body,
+            })
