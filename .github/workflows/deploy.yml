@@ -10,6 +10,8 @@ on:
       # urllib のレイヤーのバージョン（uv.lock）とビルドのスクリプト
       - 'uv.lock'
       - 'scripts/**'
+      # このワークフロー自身の変更でも plan・apply を動かして、変更が問題ないか確かめる
+      - '.github/workflows/deploy.yml'
   push:
     branches:
       - main
@@ -19,6 +21,8 @@ on:
       # urllib のレイヤーのバージョン（uv.lock）とビルドのスクリプト
       - 'uv.lock'
       - 'scripts/**'
+      # このワークフロー自身の変更でも plan・apply を動かして、変更が問題ないか確かめる
+      - '.github/workflows/deploy.yml'
 
 # AWSとOIDC連携するには必要な設定らしい
 permissions:
