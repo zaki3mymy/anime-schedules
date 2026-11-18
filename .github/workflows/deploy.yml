@@ -87,7 +87,7 @@ jobs:
         # tee でログにも出しつつファイルに保存する（PR にコメントするため）。
         # shell を明示すると pipefail が有効になり、plan の失敗を tee で握りつぶさない
         shell: bash
-        run: terraform plan -no-color -var-file=terraform.tfvars -out=tfplan 2>&1 | tee "$RUNNER_TEMP/plan.txt"
+        run: terraform plan -no-color -var-file=terraform.tfvars 2>&1 | tee "$RUNNER_TEMP/plan.txt"
 
       - name: Comment plan result
         # plan が失敗した場合も、エラーの内容を PR に残す
@@ -143,12 +143,6 @@ jobs:
               repo: context.repo.repo,
               body: body,
             })
-
-      - name: Upload Terraform Plan as Artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: terraform-plan
-          path: tf/tfplan
 
   terraform-apply:
     if: github.event_name == 'push'
