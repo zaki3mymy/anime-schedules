@@ -218,9 +218,35 @@ jobs:
               body += ['<details>', '<summary>Show plan</summary>', '', '```', plan, '```', '', '</details>'].join('\n')
             }
 
-            await github.rest.issues.createComment({
+            // このワークフローのコメントだと分かる目印（画面には表示されない）
+            const marker = '<!-- terraform-plan -->'
+            body = `${marker}\n${body}`
+
+            // 新しくコメントし、最新の plan をいつも一番下に出す
+            const { data: created } = await github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
               body: body,
             })
+
+            // それより前の plan のコメントを Outdated として折りたたむ（人やほかのコメントには触らない）
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              per_page: 100,
+            })
+            for (const c of comments) {
+              if (c.id === created.id) continue
+              if (c.user?.login !== 'github-actions[bot]') continue
+              if (!c.body?.startsWith(marker)) continue
+              await github.graphql(
+                `mutation($id: ID!) {
+                  minimizeComment(input: { subjectId: $id, classifier: OUTDATED }) {
+                    minimizedComment { isMinimized }
+                  }
+                }`,
+                { id: c.node_id },
+              )
+            }
