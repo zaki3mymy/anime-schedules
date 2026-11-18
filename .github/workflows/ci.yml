@@ -14,18 +14,8 @@ on:
       - "Containerfile"
       - "scripts/**"
       - ".github/workflows/ci.yml"
-  push:
-    branches: [main]
-    paths:
-      - "src/**"
-      - "tests/**"
-      - "tf/**"
-      - "pyproject.toml"
-      - "uv.lock"
-      - ".python-version"
-      - "Containerfile"
-      - "scripts/**"
-      - ".github/workflows/ci.yml"
+  # main への push では deploy.yml から呼ぶ
+  workflow_call:
   workflow_dispatch:
 
 permissions:

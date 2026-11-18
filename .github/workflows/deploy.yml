@@ -1,6 +1,6 @@
 name: Terraform Deployment
 
-# main への push で apply する（PR の plan は ci.yml）
+# main への push で CI（ci.yml）を通してから apply する（PR の plan は ci.yml）
 on:
   workflow_dispatch:
 
@@ -14,6 +14,7 @@ on:
       - 'uv.lock'
       - 'scripts/**'
       - '.github/workflows/deploy.yml'
+      - '.github/workflows/ci.yml'
 
 # AWSとOIDC連携するには必要な設定らしい
 permissions:
@@ -21,8 +22,19 @@ permissions:
   contents: read
 
 jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+    secrets: inherit
+    # 呼び出し先のジョブは、ここで許可した以上の権限を要求できない（terraform-plan は PR でだけ動くが、確認は起動時に行われる）
+    permissions:
+      id-token: write
+      contents: read
+      pull-requests: write
+
   terraform-apply:
-    if: github.event_name == 'push'
+    needs: ci
+    # 手で実行（workflow_dispatch）したときも、main からだけ apply する
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
