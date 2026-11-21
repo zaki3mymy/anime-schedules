@@ -33,3 +33,9 @@ updates:
     groups:
       terraform-providers:
         patterns: ["*"]
+
+  # 開発のツール（flake.lock の入力。nixpkgs を進めると uv などがまとめて新しくなる）
+  - package-ecosystem: "nix"
+    directory: "/"
+    schedule:
+      interval: "weekly"
