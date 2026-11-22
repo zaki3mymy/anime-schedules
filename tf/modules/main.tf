@@ -1,4 +1,3 @@
-# IAM
 resource "aws_iam_role" "main" {
   name        = "${var.appname}-role"
   description = "Role for ${var.appname}"
@@ -29,7 +28,6 @@ data "aws_ssm_parameter" "grafana_otlp_auth" {
   name = var.grafana_otlp_auth_parameter
 }
 
-# Lambda
 data "archive_file" "main" {
   type        = "zip"
   source_dir  = "${path.root}/../src/anime_schedules/"
@@ -105,13 +103,11 @@ resource "aws_lambda_function_event_invoke_config" "main" {
   maximum_retry_attempts = 0
 }
 
-# CloudWatch Logs
 resource "aws_cloudwatch_log_group" "main" {
   name              = "/aws/lambda/${aws_lambda_function.main.function_name}"
   retention_in_days = 14
 }
 
-# EventBridge
 resource "aws_cloudwatch_event_rule" "main" {
   name        = "${var.appname}-rule"
   description = "Send Anime Schedules every 18:00."
@@ -124,7 +120,6 @@ resource "aws_cloudwatch_event_target" "main" {
   arn       = aws_lambda_function.main.arn
 }
 
-# ResourceGroup
 resource "aws_resourcegroups_group" "main" {
   name = "${var.appname}-resourcegroup"
   resource_query {
