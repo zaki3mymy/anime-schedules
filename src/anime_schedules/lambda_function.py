@@ -34,12 +34,11 @@ def _fetch_schedule(date: datetime) -> dict:
         date (datetime): 放送日を取得する日(JST)
 
     Returns:
-        dict: 放送日
+        dict: Annict の /v1/me/programs のレスポンス（programs に番組の一覧が入る）
     """
     token = os.environ["ANNICT_TOKEN"]
     annict_endpoint = os.environ.get("ANNICT_ENDPOINT", ANNICT_ENDPOINT)
 
-    # 時間を落とす
     date = date.replace(hour=0, minute=0, second=0, microsecond=0)
 
     # Annict では時間はUTCとして扱われるため日本時間に合わせる
@@ -48,7 +47,6 @@ def _fetch_schedule(date: datetime) -> dict:
     params = {
         "filter_started_at_gt": from_dt.isoformat(),
         "filter_started_at_lt": to_dt.isoformat(),
-        # 放送日の昇順で取得する
         "sort_started_at": "asc",
     }
 
