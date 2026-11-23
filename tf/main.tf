@@ -53,6 +53,7 @@ module "main" {
   annict_token    = var.annict_token
   notify_api_key  = var.notify_api_key
   notify_endpoint = var.notify_endpoint
+  memory_size     = 256
   otel_layer_arns = local.otel_layer_arns
   # scripts/build_otel_urllib_layer.py の出力先
   otel_urllib_layer_zip_path = "${path.root}/../dist/otel-urllib-layer.zip"
