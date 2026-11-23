@@ -83,7 +83,8 @@ resource "aws_lambda_function" "main" {
       "NOTIFY_ENDPOINT"             = var.notify_endpoint
     }
   }
-  timeout = 30
+  timeout     = 30
+  memory_size = var.memory_size
   logging_config {
     log_format            = "JSON"
     application_log_level = "INFO"
