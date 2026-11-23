@@ -36,3 +36,9 @@ variable "grafana_otlp_auth_parameter" {
   type        = string
   description = "Name of the SSM parameter that holds the Authorization header value for Grafana Cloud OTLP"
 }
+
+variable "memory_size" {
+  type        = number
+  description = "Memory size of the Lambda function in MB"
+  default     = 256
+}
