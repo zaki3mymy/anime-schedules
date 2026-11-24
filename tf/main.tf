@@ -33,14 +33,14 @@ locals {
   # コレクターは OTLP を受けて、Grafana Cloud に otlphttp で送る（src/anime_schedules/collector.yaml）
   # 新しいバージョンが出たら、.github/workflows/update-otel-lambda-layers.yml がこの ARN と
   # pyproject.toml・uv.lock の OTel の依存を一緒に上げる PR を作る（ローカルと本番をそろえる。
-  # 自前の urllib のレイヤーも uv.lock のバージョンで作る）。手で上げるときも、両方を同じバージョンにする
+  # 自前の計装のレイヤーも uv.lock のバージョンで作る）。手で上げるときも、両方を同じバージョンにする
   otel_layer_arns = [
     "arn:aws:lambda:ap-northeast-1:184161586896:layer:opentelemetry-python-0_22_0:1",
     "arn:aws:lambda:ap-northeast-1:184161586896:layer:opentelemetry-collector-amd64-0_24_0:1",
   ]
 
   # Grafana Cloud の OTLP の送信先（スタックの OTLP の URL に /otlp を付けたもの）。
-  # otlphttp exporter はこの後ろに /v1/traces・/v1/metrics を付けて送る
+  # otlphttp exporter はこの後ろに /v1/traces・/v1/metrics・/v1/logs を付けて送る
   grafana_otlp_endpoint = "https://otlp-gateway-prod-ap-northeast-0.grafana.net/otlp"
   # Grafana Cloud に送るための Authorization ヘッダーの値を置いた SSM パラメータ（このリポジトリの外で作る）
   grafana_otlp_auth_parameter = "/app/grafana/prod/otlp_auth"
@@ -55,8 +55,8 @@ module "main" {
   notify_endpoint = var.notify_endpoint
   memory_size     = 256
   otel_layer_arns = local.otel_layer_arns
-  # scripts/build_otel_urllib_layer.py の出力先
-  otel_urllib_layer_zip_path = "${path.root}/../dist/otel-urllib-layer.zip"
+  # scripts/build_otel_instrumentations_layer.py の出力先
+  otel_instrumentations_layer_zip_path = "${path.root}/../dist/otel-instrumentations-layer.zip"
 
   grafana_otlp_endpoint       = local.grafana_otlp_endpoint
   grafana_otlp_auth_parameter = local.grafana_otlp_auth_parameter

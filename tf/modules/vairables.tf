@@ -22,9 +22,9 @@ variable "otel_layer_arns" {
   description = "ARNs of the OpenTelemetry Lambda layers (Python instrumentation + collector)"
 }
 
-variable "otel_urllib_layer_zip_path" {
+variable "otel_instrumentations_layer_zip_path" {
   type        = string
-  description = "Path to the zip of the Lambda layer with opentelemetry-instrumentation-urllib (built by scripts/build_otel_urllib_layer.py)"
+  description = "Path to the zip of the Lambda layer with the OTel instrumentations missing from the community layer (built by scripts/build_otel_instrumentations_layer.py)"
 }
 
 variable "grafana_otlp_endpoint" {

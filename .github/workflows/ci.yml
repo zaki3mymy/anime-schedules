@@ -132,9 +132,9 @@ jobs:
           # terraform の出力の ARN に出るアカウント ID を、ログでマスクする
           mask-aws-account-id: true
 
-      - name: Build the urllib instrumentation layer
-        # tf/modules/main.tf の aws_lambda_layer_version.otel_urllib が使う zip（dist/otel-urllib-layer.zip）を作る
-        run: python3 scripts/build_otel_urllib_layer.py
+      - name: Build the OTel instrumentations layer
+        # tf/modules/main.tf の aws_lambda_layer_version.otel_instrumentations が使う zip（dist/otel-instrumentations-layer.zip）を作る
+        run: python3 scripts/build_otel_instrumentations_layer.py
 
       - name: Fetch Terraform variables from Parameter Store
         working-directory: tf

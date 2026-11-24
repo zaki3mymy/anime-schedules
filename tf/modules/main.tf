@@ -33,15 +33,16 @@ data "archive_file" "main" {
   source_dir  = "${path.root}/../src/anime_schedules/"
   output_path = "${path.root}/../dist/src.zip"
 }
-# urllib の計装（opentelemetry-instrumentation-urllib）だけを入れたレイヤー。
-# コミュニティの Python 計装レイヤーには urllib の計装が無いため、自前で足す（Issue #35）。
-# zip は scripts/build_otel_urllib_layer.py で作る（CI の deploy.yml で terraform の前に実行する）。
+# コミュニティの Python 計装レイヤーに無い計装を、自前で足すレイヤー。
+#   - opentelemetry-instrumentation-urllib: 通知 API へのリクエストに traceparent を付ける（Issue #35）
+#   - opentelemetry-instrumentation-logging: logging のログを OTel のログとして送る
+# zip は scripts/build_otel_instrumentations_layer.py で作る（CI の terraform-plan と deploy.yml で、terraform の前に実行する）。
 # 同じバージョンなら zip のハッシュは変わらないので、レイヤーは作り直されない
-resource "aws_lambda_layer_version" "otel_urllib" {
-  layer_name          = "${var.appname}-otel-urllib"
-  description         = "opentelemetry-instrumentation-urllib for ${var.appname}"
-  filename            = var.otel_urllib_layer_zip_path
-  source_code_hash    = filebase64sha256(var.otel_urllib_layer_zip_path)
+resource "aws_lambda_layer_version" "otel_instrumentations" {
+  layer_name          = "${var.appname}-otel-instrumentations"
+  description         = "OTel instrumentations missing from the community layer (urllib, logging) for ${var.appname}"
+  filename            = var.otel_instrumentations_layer_zip_path
+  source_code_hash    = filebase64sha256(var.otel_instrumentations_layer_zip_path)
   compatible_runtimes = ["python3.13"]
 }
 
@@ -54,8 +55,8 @@ resource "aws_lambda_function" "main" {
   source_code_hash = data.archive_file.main.output_base64sha256
   # zipには opentelemetry パッケージが含まれないため、Layerから提供する
   # AWS_LAMBDA_EXEC_WRAPPER（下記environment）でPython計装レイヤーがlambda_handlerをラップする
-  # 自前の urllib のレイヤーは、コミュニティのレイヤーのあとに重ねる（どれも /opt/python に展開される）
-  layers = concat(var.otel_layer_arns, [aws_lambda_layer_version.otel_urllib.arn])
+  # 自前の計装のレイヤーは、コミュニティのレイヤーのあとに重ねる（どれも /opt/python に展開される）
+  layers = concat(var.otel_layer_arns, [aws_lambda_layer_version.otel_instrumentations.arn])
   # X-Ray にはトレースを送らない（Grafana Cloud に送る）。
   # ブロックを消すだけでは今の設定（Active）が残るため、PassThrough を明示する
   tracing_config {
@@ -72,6 +73,9 @@ resource "aws_lambda_function" "main" {
       "OTEL_RESOURCE_ATTRIBUTES" = "deployment.environment.name=prod,deployment.environment=prod"
       "OTEL_TRACES_EXPORTER"     = "otlp"
       "OTEL_METRICS_EXPORTER"    = "otlp"
+      # logging のログを OTel のログとして送る（自前のレイヤーの opentelemetry-instrumentation-logging が
+      # ルートロガーにハンドラーを付ける）。ログは実行の終わりに lambda_function.py で flush する
+      "OTEL_LOGS_EXPORTER" = "otlp"
       # メトリクスは SDK の既定の cumulative（累積値）で送る（Grafana Cloud は Prometheus 互換で累積値を前提にする）。
       # 1日1回の実行でほぼ毎回コールドスタートになり、カウンタは毎回 0 から数え直すため、
       # Grafana では increase() ではなく、その日の値（例: max_over_time(...[1d])）で見る
