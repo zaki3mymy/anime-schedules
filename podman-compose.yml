@@ -29,6 +29,7 @@ services:
       OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
       OTEL_TRACES_EXPORTER: otlp
       OTEL_METRICS_EXPORTER: otlp
+      OTEL_LOGS_EXPORTER: otlp
       OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE: DELTA
     ports:
       - "9000:8080"
@@ -47,6 +48,7 @@ services:
       - "4318:4318"
     depends_on:
       - jaeger
+      - loki
     networks:
       - local-net
 
@@ -68,12 +70,21 @@ services:
     networks:
       - local-net
 
+  loki:
+    # イメージに入っている既定の設定で動かす。OTLP は /otlp で受ける
+    image: grafana/loki:latest
+    ports:
+      - "3100:3100"
+    networks:
+      - local-net
+
   grafana:
     image: grafana/grafana:latest
     ports:
       - "3000:3000"
     depends_on:
       - prometheus
+      - loki
     networks:
       - local-net
 

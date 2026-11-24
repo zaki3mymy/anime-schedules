@@ -1,6 +1,8 @@
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import pytest
+from opentelemetry._logs._internal import ProxyLoggerProvider
+from opentelemetry.sdk._logs import LoggerProvider
 
 from anime_schedules import lambda_function
 
@@ -39,3 +41,41 @@ def test_push_when_programs_exist():
 
     push.assert_called_once()
     assert len(push.call_args.args[0]) == 1
+
+
+def test_flushes_logs_after_handling():
+    provider = Mock(spec=LoggerProvider)
+    with (
+        patch.object(lambda_function, "get_logger_provider", return_value=provider),
+        patch.object(lambda_function, "_fetch_schedule", return_value={"programs": []}),
+    ):
+        lambda_function.lambda_handler({}, {})
+
+    provider.force_flush.assert_called_once_with(
+        timeout_millis=lambda_function.LOG_FLUSH_TIMEOUT_MILLIS
+    )
+
+
+def test_flushes_logs_even_when_handling_raises():
+    provider = Mock(spec=LoggerProvider)
+    with (
+        patch.object(lambda_function, "get_logger_provider", return_value=provider),
+        patch.object(
+            lambda_function, "_fetch_schedule", side_effect=RuntimeError("boom")
+        ),
+        pytest.raises(RuntimeError),
+    ):
+        lambda_function.lambda_handler({}, {})
+
+    provider.force_flush.assert_called_once()
+
+
+def test_skips_flush_without_sdk():
+    # SDK が設定されていないときは、API の ProxyLoggerProvider が返る（force_flush が無い）
+    with (
+        patch.object(
+            lambda_function, "get_logger_provider", return_value=ProxyLoggerProvider()
+        ),
+        patch.object(lambda_function, "_fetch_schedule", return_value={"programs": []}),
+    ):
+        lambda_function.lambda_handler({}, {})

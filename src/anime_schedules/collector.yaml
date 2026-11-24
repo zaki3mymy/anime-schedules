@@ -1,5 +1,5 @@
 # Lambda の Collector レイヤー（opentelemetry-lambda のコミュニティ製）の設定。
-# アプリ（Python 計装レイヤー）から OTLP で受けて、Grafana Cloud に otlphttp で送る。
+# アプリ（Python 計装レイヤー）からトレース・メトリクス・ログを OTLP で受けて、Grafana Cloud に otlphttp で送る。
 # 送信先と Authorization ヘッダーの値は、Lambda の環境変数で渡す（tf/modules/main.tf）。
 receivers:
   otlp:
@@ -37,6 +37,19 @@ processors:
         statements:
           - delete_key(attributes, "cloud.account.id")
           - delete_key(attributes, "cloud.resource_id")
+    # ログの本文は、アプリのまま送るため属性のように消せない。今のアプリのログには入らないが、
+    # 例外のメッセージなどに入ったときのために、ARN の中のアカウント ID と API Gateway のホストを伏せる。
+    # CloudWatch Logs には元のまま出る。$$ は Collector の設定の $ のエスケープ
+    # （"$${1}" は OTTL には "${1}"、つまり 1 番目のキャプチャーとして渡る）
+    log_statements:
+      - context: log
+        statements:
+          - replace_pattern(body, "(arn:aws[a-z-]*:[a-z0-9-]+:[a-z0-9-]*:)[0-9]{12}", "$${1}***")
+          - replace_pattern(body, "[a-z0-9]+\\.execute-api\\.[a-z0-9-]+\\.amazonaws\\.com", "{nandemo-oshirase}")
+      - context: resource
+        statements:
+          - delete_key(attributes, "cloud.account.id")
+          - delete_key(attributes, "cloud.resource_id")
   # Lambda の応答を返してから送るようにする（実行の終わりに Grafana Cloud への送信を待たない）。
   # 送り終わるまで実行環境は止められない。パイプラインの最後に置く
   decouple:
@@ -54,6 +67,12 @@ service:
       processors: [transform/redact, decouple]
       exporters: [otlphttp/grafana_cloud]
     metrics:
+      receivers: [otlp]
+      processors: [transform/redact, decouple]
+      exporters: [otlphttp/grafana_cloud]
+    # アプリの logging のログ（opentelemetry-instrumentation-logging が OTel のログにする）。
+    # Grafana Cloud では Loki に入り、トレース ID・span ID でトレースと紐づく
+    logs:
       receivers: [otlp]
       processors: [transform/redact, decouple]
       exporters: [otlphttp/grafana_cloud]

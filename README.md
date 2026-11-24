@@ -92,36 +92,44 @@ podman-compose up --build
 
 ### OTelメトリクス収集・トレース可視化
 
-`podman-compose up` すると、`otel-collector` / `jaeger` / `prometheus` / `grafana` も起動する。
-`lambda` サービスは OTLP (HTTP:4318) で `otel-collector` にテレメトリを送信し、`otel-collector` がトレースを Jaeger に、メトリクスを Prometheus にルーティングする。
+`podman-compose up` すると、`otel-collector` / `jaeger` / `prometheus` / `loki` / `grafana` も起動する。
+`lambda` サービスは OTLP (HTTP:4318) で `otel-collector` にテレメトリを送信し、`otel-collector` がトレースを Jaeger に、メトリクスを Prometheus に、ログを Loki にルーティングする。
 
 ```
 lambda → OTLP(HTTP:4318) → otel-collector
                                 ├─ traces  → Jaeger  (UI: localhost:16686)
-                                └─ metrics → Prometheus (UI: localhost:9090)
-                                                ↓
-                                            Grafana (UI: localhost:3000)
+                                ├─ metrics → Prometheus (UI: localhost:9090) ─┐
+                                └─ logs    → Loki (localhost:3100) ──────────┴→ Grafana (UI: localhost:3000)
 ```
 
 - Jaeger UI: http://localhost:16686
 - Prometheus UI: http://localhost:9090
 - Grafana UI: http://localhost:3000 (初期ログイン `admin` / `admin`。Prometheus をデータソースとして手動で追加する必要がある。データソースURLは `http://prometheus:9090`)
+- Loki: http://localhost:3100 (Grafana にデータソースとして手動で追加する。データソースURLは `http://loki:3100`。Explore で `{service_name="anime-schedules"}` で確認する)
 
 `lambda` サービスは [OpenTelemetry の自動計装](https://opentelemetry.io/docs/zero-code/python/) (`opentelemetry-instrument`) 経由で起動しており、コード変更なしに以下のスパンが記録される。
 - Lambda呼び出し全体（EventBridgeトリガー）のスパン
 - Annict API・通知APIへの `urllib` リクエストのスパン
+- `logging` のログ（そのときのスパンの `trace_id`・`span_id` が付く）
 
-なお、ローカル環境用の `Containerfile` を使ったコンテナイメージであり、`tf/modules/main.tf` でデプロイしている本番のZipパッケージ形式のLambda関数には `opentelemetry` パッケージが含まれないため、OTel の Python計装レイヤーと Collectorレイヤー（どちらもコミュニティ製）を付与（`tf/main.tf` の `otel_layer_arns`）してLambdaに提供している。Collectorの設定は zip に同梱した `src/anime_schedules/collector.yaml` を使い、トレースとメトリクスを Grafana Cloud に OTLP で送信する。
+なお、ローカル環境用の `Containerfile` を使ったコンテナイメージであり、`tf/modules/main.tf` でデプロイしている本番のZipパッケージ形式のLambda関数には `opentelemetry` パッケージが含まれないため、OTel の Python計装レイヤーと Collectorレイヤー（どちらもコミュニティ製）を付与（`tf/main.tf` の `otel_layer_arns`）してLambdaに提供している。Collectorの設定は zip に同梱した `src/anime_schedules/collector.yaml` を使い、トレース・メトリクス・ログを Grafana Cloud に OTLP で送信する。
 
-コミュニティの Python計装レイヤーには urllib の計装（`opentelemetry-instrumentation-urllib`）が入っていない。urllib の計装が無いと、通知APIへのリクエストに `traceparent` が付かず、nandemo-oshirase と1つのトレースにならない（[#35](https://github.com/zaki3mymy/anime-schedules/issues/35)）。そのため、urllib の計装だけを入れたレイヤーを自前で作り、コミュニティのレイヤーに重ねている（`tf/modules/main.tf` の `aws_lambda_layer_version.otel_urllib`）。
+コミュニティの Python計装レイヤーには、次の計装が入っていない。そのため、これらを入れたレイヤーを自前で作り、コミュニティのレイヤーに重ねている（`tf/modules/main.tf` の `aws_lambda_layer_version.otel_instrumentations`）。
 
-- zip は `scripts/build_otel_urllib_layer.py` で作る（`deploy.yml` で Terraform の前に実行する）。依存するパッケージはコミュニティのレイヤーにあるので、urllib の計装だけを `--no-deps` で入れる。同じバージョンなら zip のハッシュは変わらないので、レイヤーは作り直されない。
+| 計装 | 無いと |
+| --- | --- |
+| `opentelemetry-instrumentation-urllib` | 通知APIへのリクエストに `traceparent` が付かず、nandemo-oshirase と1つのトレースにならない（[#35](https://github.com/zaki3mymy/anime-schedules/issues/35)） |
+| `opentelemetry-instrumentation-logging` | `logging` のログが OTel のログとして送られない |
+
+- zip は `scripts/build_otel_instrumentations_layer.py` で作る（CI の terraform-plan と `deploy.yml` で、Terraform の前に実行する）。依存するパッケージはコミュニティのレイヤーにあるので、これらの計装だけを `--no-deps` で入れる。計装を足すときは、スクリプトの `PACKAGES` と `pyproject.toml` の両方に足す。同じバージョンなら zip のハッシュは変わらないので、レイヤーは作り直されない。
 - バージョンは `uv.lock` のものを使う。`pyproject.toml` の OTel の依存は、コミュニティの Python計装レイヤー（タグの `requirements.txt`）と同じバージョンに `==` で固定している（ローカルと本番のバージョンをそろえるため）。Dependabot では OTel のパッケージを上げない（`.github/dependabot.yml` の `ignore`）。
 - コミュニティのレイヤーの新しいバージョンは、`.github/workflows/update-otel-lambda-layers.yml` が見つけて、`tf/main.tf` の ARN と `pyproject.toml`・`uv.lock` の OTel の依存を一緒に上げる PR を作る。opentelemetry-lambda のリリースは feed-release-invoke-workflow の `repository_dispatch`（`otel-lambda-release`）で知り、取りこぼしに備えて週1回の `schedule` でも確認する。
 
-Grafana Cloud に送るための Authorization ヘッダーの値（`Basic <base64(スタックの ID:トークン)>`）は、SSM Parameter Store の `/app/grafana/prod/otlp_auth`（SecureString）に置かれている前提で、パラメータはこのリポジトリの外で作成・管理する。Collectorレイヤーは SSM Parameter Store を読めないため、Terraform がこのパラメータを読み、Lambda の環境変数 `GRAFANA_CLOUD_OTLP_AUTH` に渡す（値は Terraform の state と Lambda の環境変数に残る）。
+Grafana Cloud に送るための Authorization ヘッダーの値（`Basic <base64(スタックの ID:トークン)>`）は、SSM Parameter Store の `/app/grafana/prod/otlp_auth`（SecureString）に置かれている前提で、パラメータはこのリポジトリの外で作成・管理する。Collectorレイヤーは SSM Parameter Store を読めないため、Terraform がこのパラメータを読み、Lambda の環境変数 `GRAFANA_CLOUD_OTLP_AUTH` に渡す（値は Terraform の state と Lambda の環境変数に残る）。トークン（Access Policy）には、`traces:write`・`metrics:write`・`logs:write` の権限が要る。`logs:write` が無いと、ログの送信だけが 401/403 で失敗する。
 
-Lambda の計装が付ける AWS のアカウント ID（`cloud.account.id`）と関数の ARN（`cloud.resource_id`）は、Collector で消してから送る。urllib の計装が付ける呼び出し先の URL（`http.url`）は、span では通知 API の API Gateway のホストだけを `{nandemo-oshirase}` に置き換え、メトリクスでは属性ごと消す（Annict の URL のクエリに日付が入り、メトリクスの系列が毎日増えるため）。
+Lambda の計装が付ける AWS のアカウント ID（`cloud.account.id`）と関数の ARN（`cloud.resource_id`）は、Collector で消してから送る。urllib の計装が付ける呼び出し先の URL（`http.url`）は、span では通知 API の API Gateway のホストだけを `{nandemo-oshirase}` に置き換え、メトリクスでは属性ごと消す（Annict の URL のクエリに日付が入り、メトリクスの系列が毎日増えるため）。ログの本文では、ARN の中のアカウント ID を `***` に、API Gateway のホストを `{nandemo-oshirase}` に置き換える（今のアプリのログには入らないが、例外のメッセージなどに入ったときのため）。CloudWatch Logs には元のまま出る。
+
+ログは、アプリの `logging` のログを `opentelemetry-instrumentation-logging`（自前の計装のレイヤー）が OTel のログにして送る。CloudWatch Logs にも今までどおり出る。Grafana の Explore（データソース: Loki）で `{service_name="anime-schedules"}` で絞り込む。Lambda の計装は実行の終わりにトレースとメトリクスしか flush しないので、ログは `lambda_handler` の最後（例外のときも）で flush している（`lambda_function.py` の `_flush_logs`）。flush しないと、応答を返したあとに実行環境が凍結され、次の呼び出しまで送られない（実行環境が止まると失われる）ことがある。
 
 メトリクスは累積値（cumulative）で送る。1日1回の実行でほぼ毎回コールドスタートになり、カウンタは毎回 0 から数え直すため、Grafana では `increase()` ではなく、その日の値（例: `max_over_time(...[1d])`）で見る。
 
