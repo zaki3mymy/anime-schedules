@@ -6,8 +6,11 @@ from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
 from opentelemetry import metrics, trace
+from opentelemetry._logs import get_logger_provider
 
 ANNICT_ENDPOINT = "https://api.annict.com"
+# 実行の終わりにログを flush するときに待つ最大の時間。送り先は同じ実行環境の Collector（localhost）
+LOG_FLUSH_TIMEOUT_MILLIS = 5000
 
 logger = logging.getLogger(name=__name__)
 
@@ -117,7 +120,28 @@ def _push_message(messages: list[dict[str, str]]):
     _notification_counter.add(1, {"status": "success"})
 
 
+def _flush_logs():
+    """Lambda が実行環境を凍結する前に、OTel のログを送り切る。
+
+    Lambda の計装は実行の終わりにトレースとメトリクスしか flush しない。ログは SDK がまとめて送るので、
+    flush しないと次の呼び出しまで送られない（実行環境が止まると失われる）。
+    """
+    provider = get_logger_provider()
+    # opentelemetry-instrument を通さない（SDK が設定されていない）ときは、API の
+    # ProxyLoggerProvider が返り、force_flush が無いので何もしない
+    force_flush = getattr(provider, "force_flush", None)
+    if callable(force_flush):
+        force_flush(timeout_millis=LOG_FLUSH_TIMEOUT_MILLIS)
+
+
 def lambda_handler(event, context):
+    try:
+        _handle()
+    finally:
+        _flush_logs()
+
+
+def _handle():
     if not os.environ.get("ANNICT_TOKEN"):
         raise KeyError("Environment variable 'ANNICT_TOKEN' is not set.")
     if not os.environ.get("NOTIFY_API_KEY"):
