@@ -21,7 +21,7 @@ Annict で「見てるアニメ」に登録しているアニメのうち、今�
 ## Requirements
 
 実行に必要なソフトウェア。
-- Python 3.13
+- Python 3.14
 - [uv](https://docs.astral.sh/uv/)（Python の依存関係の管理）。バージョンは `pyproject.toml` の `[tool.uv] required-version` の範囲のもの（CI も同じ範囲の uv を使う）
 - Terraform 1.10
 
@@ -113,6 +113,8 @@ lambda → OTLP(HTTP:4318) → otel-collector
 - `logging` のログ（そのときのスパンの `trace_id`・`span_id` が付く）
 
 なお、ローカル環境用の `Containerfile` を使ったコンテナイメージであり、`tf/modules/main.tf` でデプロイしている本番のZipパッケージ形式のLambda関数には `opentelemetry` パッケージが含まれないため、OTel の Python計装レイヤーと Collectorレイヤー（どちらもコミュニティ製）を付与（`tf/main.tf` の `otel_layer_arns`）してLambdaに提供している。Collectorの設定は zip に同梱した `src/anime_schedules/collector.yaml` を使い、トレース・メトリクス・ログを Grafana Cloud に OTLP で送信する。
+
+Lambda のランタイムの Python は、コミュニティの Python計装レイヤーを作った Python（今は 3.14）と同じバージョンにしている。違うとレイヤーの `.pyc` が使われず、コールドスタートのたびにコンパイルし直すので遅くなる。レイヤーを上げるときは、そのタグの `python/src/otel/Dockerfile` の Python のバージョンも確認する。
 
 コミュニティの Python計装レイヤーには、次の計装が入っていない。そのため、これらを入れたレイヤーを自前で作り、コミュニティのレイヤーに重ねている（`tf/modules/main.tf` の `aws_lambda_layer_version.otel_instrumentations`）。
 
