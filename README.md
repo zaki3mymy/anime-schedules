@@ -129,6 +129,8 @@ Grafana Cloud に送るための Authorization ヘッダーの値（`Basic <base
 
 Lambda の計装が付ける AWS のアカウント ID（`cloud.account.id`）と関数の ARN（`cloud.resource_id`）は、Collector で消してから送る。urllib の計装が付ける呼び出し先の URL（`http.url`）は、span では通知 API の API Gateway のホストだけを `{nandemo-oshirase}` に置き換え、メトリクスでは属性ごと消す（Annict の URL のクエリに日付が入り、メトリクスの系列が毎日増えるため）。ログの本文では、ARN の中のアカウント ID を `***` に、API Gateway のホストを `{nandemo-oshirase}` に置き換える（今のアプリのログには入らないが、例外のメッセージなどに入ったときのため）。CloudWatch Logs には元のまま出る。
 
+コールドスタートのときは、実行環境の初期化が `init <関数名>`（属性 `faas.coldstart=true`）という span になり、そのとき呼ばれた実行と同じトレースに入る（Collector の `telemetryapi` receiver と `coldstart` processor）。Grafana の Explore（データソース: Tempo）で、初期化にかかった時間を確かめられる。
+
 ログは、アプリの `logging` のログを `opentelemetry-instrumentation-logging`（自前の計装のレイヤー）が OTel のログにして送る。CloudWatch Logs にも今までどおり出る。Grafana の Explore（データソース: Loki）で `{service_name="anime-schedules"}` で絞り込む。Lambda の計装は実行の終わりにトレースとメトリクスしか flush しないので、ログは `lambda_handler` の最後（例外のときも）で flush している（`lambda_function.py` の `_flush_logs`）。flush しないと、応答を返したあとに実行環境が凍結され、次の呼び出しまで送られない（実行環境が止まると失われる）ことがある。
 
 メトリクスは累積値（cumulative）で送る。1日1回の実行でほぼ毎回コールドスタートになり、カウンタは毎回 0 から数え直すため、Grafana では `increase()` ではなく、その日の値（例: `max_over_time(...[1d])`）で見る。

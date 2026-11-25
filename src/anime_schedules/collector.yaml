@@ -8,8 +8,15 @@ receivers:
         endpoint: localhost:4317
       http:
         endpoint: localhost:4318
+  # Lambda の Telemetry API から、実行環境の初期化（コールドスタート）の開始と終了を受け取り、
+  # "init <関数名>" という span（faas.coldstart=true）を作る。トレースだけで使う
+  telemetryapi:
 
 processors:
+  # telemetryapi が作った初期化の span を、そのとき呼ばれた実行（ハンドラー）と同じトレースに入れる。
+  # 実行の span を faas.invocation_id で見分け、初期化の span を faas.coldstart で見分けるので、
+  # アプリの span に faas.coldstart を付けてはいけない（transform/redact でも faas.invocation_id は消さない）
+  coldstart:
   # Grafana Cloud に出したくない値を、送る前に消す・伏せる。
   #   - cloud.account.id・cloud.resource_id: Lambda の計装が実行の span に付ける AWS のアカウント ID と関数の ARN
   #   - http.url: urllib の計装（自前のレイヤーで足している。tf/modules/main.tf）が、
@@ -63,8 +70,8 @@ exporters:
 service:
   pipelines:
     traces:
-      receivers: [otlp]
-      processors: [transform/redact, decouple]
+      receivers: [otlp, telemetryapi]
+      processors: [coldstart, transform/redact, decouple]
       exporters: [otlphttp/grafana_cloud]
     metrics:
       receivers: [otlp]
