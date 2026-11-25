@@ -43,14 +43,14 @@ resource "aws_lambda_layer_version" "otel_instrumentations" {
   description         = "OTel instrumentations missing from the community layer (urllib, logging) for ${var.appname}"
   filename            = var.otel_instrumentations_layer_zip_path
   source_code_hash    = filebase64sha256(var.otel_instrumentations_layer_zip_path)
-  compatible_runtimes = ["python3.13"]
+  compatible_runtimes = ["python3.14"]
 }
 
 resource "aws_lambda_function" "main" {
   function_name    = var.appname
   role             = aws_iam_role.main.arn
   handler          = "lambda_function.lambda_handler"
-  runtime          = "python3.13"
+  runtime          = "python3.14"
   filename         = data.archive_file.main.output_path
   source_code_hash = data.archive_file.main.output_base64sha256
   # zipには opentelemetry パッケージが含まれないため、Layerから提供する
